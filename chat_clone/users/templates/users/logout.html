@@ -1,0 +1,26 @@
+<!--logout-->
+{% extends "chats/base.html" %}
+
+{% block title %}Chats{% endblock %}
+
+{% block content %}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>LOGOUT</title>
+</head>
+<body>
+    <h2>Logout</h2>
+
+    <form method="post" action="{% url 'users:logout' %}">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit">Logout</button>
+    </form>
+
+    <p><a href="{% url 'users:login' %}">Login</a></p>
+</body>
+</html>
+
+{% endblock content %}

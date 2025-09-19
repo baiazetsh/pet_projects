@@ -1,0 +1,67 @@
+# docker-compose.yml
+services:
+  redis:
+    image: redis:7
+    container_name: redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build: .
+    container_name: django-web
+    command: python manage.py runserver 0.0.0.0:8000
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    environment:
+      - DJANGO_SETTINGS_MODULE=blg.settings
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - OLLAMA_URL=http://ollama:11434
+      - USE_CELERY=True
+    depends_on:
+      - redis
+      - ollama
+
+  celery:
+    build: .
+    container_name: django-celery
+    command: celery -A blg worker -l info -P solo --concurrency=1
+    volumes:
+      - .:/app
+    environment:
+      - DJANGO_SETTINGS_MODULE=blg.settings
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - OLLAMA_URL=http://ollama:11434
+      - USE_CELERY=True
+    depends_on:
+      - redis
+      - web
+      - ollama
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+      - ./init.sh:/init.sh
+    restart: unless-stopped
+    environment:
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-gemma3:1b}
+    entrypoint: ["/bin/sh", "/init.sh"]
+    healthcheck:
+      test: ["CMD", "curl", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+volumes:
+  ollama-data:

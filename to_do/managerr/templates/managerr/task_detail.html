@@ -1,0 +1,23 @@
+<!--task_detail.html-->
+{% extends "managerr/base.html" %}
+
+{% block title %}Task detail{% endblock %}
+
+{% block content %}
+
+
+   <title>Tasks</title>
+        <input type="checkbox" disabled {% if task.status %}checked{% endif %}>
+        <strong>{{ task.title }}</strong>
+        <p>{{ task.description }}</p>
+        <p>Status: {% if task.status %}✅ Done{% else %}⏳ In progress{% endif %}</p>
+        <small>(due: {{ task.due_date|default:"—" }})</small>
+        {% if task.is_overdue %}
+            <span style="color:red;">Overdue!</span>
+        {% endif %}
+<a href="{% url 'managerr:task_edit' task.id %}">edit task</a>
+<a href="{% url 'managerr:task_delete' task.id %}">erase task</a>
+
+{% endblock content%}   
+
+

@@ -1,0 +1,38 @@
+<!--base-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}Мой сайт{% endblock %}</title>
+</head>
+<body>
+    <header>
+        <h1>Заголовок сайта</h1>
+    </header>
+        <a href="{% url 'zz:index' %}" class="btn btn-secondary">"Home" 
+        </a>
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    {% if messages %}
+  <ul class="messages">
+    {% for message in messages %}
+      <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>
+        {{ message }}
+      </li>
+    {% endfor %}
+  </ul>
+{% endif %}
+
+    <footer>
+        <p>© 2025</p>
+    </footer>
+</body>
+</html>
+
+
+
+
+
+

@@ -1,0 +1,26 @@
+<!--task_form.html-->
+{% extends "managerr/base.html" %}
+
+{% block title %}Task form{% endblock %}
+
+
+{% block content %}
+
+
+<div>
+    {% if task %}
+        <form action="{% url 'managerr:task_edit' task.id %}" method="post">
+    {% else %}
+            <form action="{% url 'managerr:task_new' %}" method="post">
+    {% endif %}
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit">
+            {% if task %}Update task{% else %}Create new task{% endif %}
+        </button>
+    </form>
+</div>
+
+
+
+{% endblock content %}

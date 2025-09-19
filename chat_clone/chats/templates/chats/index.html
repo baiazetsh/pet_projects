@@ -1,0 +1,31 @@
+<!--index.html-->
+
+{% extends "chats/base.html" %}
+
+{% block title %}Chats{% endblock %}
+
+{% block content %}
+
+
+<h2>Chats</h2>
+{% if chat_list %}
+    {% for chat in chat_list %}
+        <a href="{% url 'chats:chat_detail' chat.id %}">
+            <p>{{chat.topic}}</p>
+        </a>
+        <p>{{chat.author}}</p>
+        <p>{{chat.text}}</p>
+        <p>Views:{{chat.view}}</p>
+
+        <p>{{chat.created_at}}</p>
+       
+
+    {% endfor %}
+
+{% else %}
+    <p> No chats yet</p>
+{% endif %}
+
+
+
+{% endblock content %}

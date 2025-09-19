@@ -1,0 +1,79 @@
+{% extends 'zz/base.html' %}
+{% load i18n %}
+
+{% block content %}
+<div class="container mt-4">
+
+    <h2>{% trans "All topics" %}</h2>
+
+    {% if topics %}
+        <ul class="list-group mb-3">
+            {% for topic in topics %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <span>{{ topic.name }}</span>
+                    <small>Created: {{ topic.created_at|date:"M d, Y" }}</small>
+                    {% if topic.chapters.all %}
+                        <div class="chapters-list">
+                            <h3>Chapters</h3>
+                            <ul>
+                                {% for chapter in topic.chapters.all|dictsort:"order" %}
+                                    <li>
+                                        <strong>{{ chapter.title }}</strong>
+                                        {% if chapter.description %}
+                                          <p class="chapter-description">{{ chapter.description|truncatewords:15 }}</p>
+                                        {% endif %}
+                                        <!-- Показываем количество постов в главе -->
+                                        {% with chapter.posts.count as post_count %}
+                                            {% if post_count > 0 %}
+                                                <span class="post-count">({{ post_count }} posts)</span>
+                                            {% endif %}
+                                        {% endwith %}
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% else %}
+                        <p class="no-chapters">No chapters</p>
+                    {% endif %}
+
+                    <div class="topic-actions">
+                        <a href="{% url 'zz:topic_detail' topic.pk %}" class="btn btn-primary">View Topic</a>
+                        
+                    </div>
+
+                    
+                </li>
+            {% endfor %}
+        </ul>
+        <!-- Пагинация -->
+        {% if is_paginated %}
+          <nav aria-label="Page navigation">
+            <ul class="pagination">
+
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}">
+                        {% trans "назад" %}
+                    </a>
+                </li>
+                {% endif %}
+                {% if page_obj.has_next %}
+                    <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}">
+                        {% trans "Вперед" %}
+                    </a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    {% else %}
+        <p class="text-muted">{% trans "Нет тем" %}</p>
+    {% endif %}
+
+    <a href="{% url 'zz:topic_create' %}" class="btn btn-success">
+        {% trans "Создать новую тему" %}
+    </a>
+
+</div>
+{% endblock %}

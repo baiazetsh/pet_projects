@@ -1,0 +1,81 @@
+<!-- cart/cart_detail.html -->
+
+{% extends "base.html" %}
+
+{% block title %}Products{% endblock %}
+
+{% block content %}
+<nav class="main-nav">
+  <div class="nav-buttons">
+    <button onclick="history.back()" class="btn btn-success">Continue shopping</button>
+    <a href="{% url 'products:product_list' %}" class="btn btn-success">Home</a>
+    
+  </div>
+</nav>
+
+<div class="container mt-4">
+  <h2>Your cart</h2>
+  
+  {% if list_items %}
+    <table class="table table-striped">
+      <thead>
+        <tr>
+          <th scope="col">Product</th>
+          <th scope="col">Quantity</th>
+          <th scope="col">Price (each)</th>
+          <th scope="col">Total</th>
+          <th scope="col"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in list_items %}
+          <tr>
+            <td><strong>{{ item.product.name|title }}</strong></td>
+            <td> ea. {{ item.quantity }}</td>
+            <td> $ {{ item.product.current_price }}</td>
+            <td> <strong>$ {{ item.total_price }}</strong></td>
+            <td>
+              <!-- Кнопка для удаления из корзины -->
+              <form method="post" action="{% url 'cart:remove_from_cart' item.id %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-danger">Remove</button>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <div class="text-end">
+      <p><strong>Total items: {{ cart_total_quantity }} ea.</strong></p>
+      <p><strong>Total cost: $ {{ cart_cost }}</strong></p>
+      
+     
+  {% else %}
+    <div class="alert alert-info">
+      Your cart is empty.
+    </div>
+  {% endif %}
+
+</div>
+    <form action="{% url 'orders:checkout' %}" class="cart-form">
+          <button type="submit" class="btn btn-primary">Checkout</button>
+    </form>
+</div>
+
+
+
+
+
+<!-- Сообщения -->
+    {% if messages %}
+    <div id="messages-container">
+        {% for message in messages %}
+        <div class="flash-message {{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+
+
+{% endblock content %}

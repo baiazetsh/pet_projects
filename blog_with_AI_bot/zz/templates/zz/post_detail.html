@@ -1,0 +1,62 @@
+<!--post_detail-->
+{% extends 'zz/base.html' %}
+{% load i18n %}
+
+{% block content %}
+<h3>Post detail</h3>
+<h1>{{ chapter.title }}</h1>
+<p>{{ chapter.description }}</p>
+
+
+<div class="post">
+    <h1>{{ post.title }}</h1>
+    <p>{{ post.content|truncatewords:30 }}</p>
+    <p><small>{{ post.created_at }}</small></p>
+
+        {% if post.pk %}     
+        <a href="{% url 'zz:post_update' post.pk %}" class="btn btn-secondary">Edit</a>
+
+        <form action="{% url 'zz:post_delete' post.pk %}" method="post" style="display:inline;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-sm btn-outline-danger">
+                Delete
+            </button>
+        </form>
+
+
+    {% endif %}
+</div>
+
+    <h3>{% trans "Add a comment " %}</h3>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="btn btn-primary">{% trans "Send" %}</button>
+    </form>
+    <h3>{% trans "Comments" %}</h3>
+
+    <!--call ubludok button-->
+    <form action="{% url 'zz:summon_ubludok' %}" method="post">
+        {% csrf_token %}
+        <input type="hidden" name="post_id" value="{{ post.pk }}">
+        <input type="hidden" name="next" value="{{ request.path }}">
+        <button type="submit" class="btn btn-danger">
+            {% trans "Позвать ублюдка" %}
+        </button>
+    </form>
+
+
+    <ul class="list-unstyled">
+        {% for comment in comments %}
+            
+                {% include "zz/comment.html" with comment=comment %}
+        {% empty %}
+                <li>{% trans "No comments yet" %}</li>
+            
+        {% endfor %}
+    </ul>
+
+      
+
+
+{% endblock %}

@@ -1,0 +1,17 @@
+<!--new_chat.html-->
+
+{% extends "chats/base.html" %}
+
+{% block title %}Chats{% endblock %}
+
+{% block content %}
+<H3>Create new chat</H3>
+<form action="{% url 'chats:new_chat' %}" method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Create chat</button>
+</form>
+
+
+
+{% endblock content %}

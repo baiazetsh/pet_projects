@@ -1,0 +1,75 @@
+<!--orders/order_review.html-->
+{% extends "base.html" %}
+
+{% block title %}Order review{% endblock %}
+
+{% block content %}
+<nav class="main-nav">
+  <div class="nav-buttons">
+    
+    <a href="{% url 'products:product_list' %}" class="btn btn-success">Continue shopping</a>
+    <a href="{% url 'cart:cart_detail' %}" class="btn btn-success">
+        🛒 Edit Cart (Items:{{ cart.total_items }}) (${{ cart.total_price|floatformat:2 }})
+    </a>
+    <a href="{% url 'orders:checkout' %}" class="btn btn-success">Update shipping/billing info, payment method</a>
+    
+  </div>
+</nav>
+
+<h2>Review your order</h2>
+  <!-- Список товаров -->
+<table class="table">
+  <tbody>
+    {% for item in items %}
+    <tr>
+      <td style="width: 60px;">
+        {% if item.product.image %}
+        <img src="{{ item.product.image.url }}" alt="{{ item.product.name }}"
+          class="img-thumbnail" style="max-width: 50px; height: auto;">
+        {% else %}
+          <div class="text-muted small">No photo</div>
+        {% endif %}
+      </td>
+      <td>{{ item.product.name }}</td>
+      <td>{{ item.quantity }}</td>
+      <td><strong>${{ item.total_price }}</strong></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+<p><strong>Total: ${{ order.total_price }}</strong></p>
+
+
+<!-- Данные заказа -->
+  <div class="card mb-4">
+    <div class="card-body">
+      <h4 class="card-title">Shipping & Billing info</h4>
+      <p><strong>Shipping address:</strong> {{ order.shipping_address }}</p>
+      <p><strong>Billing address:</strong> {{ order.billing_address }}</p>
+      <p><strong>Payment method:</strong> {{ order.payment_method }}</p>
+      <p><strong>Status:</strong> {{ order.status|title }}</p>
+      <p class="text-muted"><small>Created at: {{ order.created_at }}</small></p>
+    </div>
+  </div>
+
+
+
+  <form method="post" action="{% url 'orders:order_pay' order.id %}">
+    {% csrf_token %}
+    <button type="submit"  class="btn btn-primary">>💳 Pay</button>
+  </form>
+
+
+
+
+<!-- Сообщения -->
+    {% if messages %}
+    <div id="messages-container">
+        {% for message in messages %}
+        <div class="flash-message {{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+
+{% endblock content %}    

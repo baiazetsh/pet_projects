@@ -1,0 +1,43 @@
+<!--orders/checkout.html-->
+{% extends "base.html" %}
+
+{% block title %}Products{% endblock %}
+
+{% block content %}
+<nav class="main-nav">
+  <div class="nav-buttons">
+    
+    <a href="{% url 'products:product_list' %}" class="btn btn-success">Home</a>
+    <a href="{% url 'cart:cart_detail' %}" class="btn btn-success">
+        🛒 Edit Cart (Items:{{ cart.total_items }}) (${{ cart.total_price|floatformat:2 }})
+    </a>
+   
+  </div>
+</nav>
+<div class="container mt-4">
+  <div class="card-shadow-sw">
+    <div class="card-body">
+    <h2 class="card-title mb-4">Checkout</h2>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="btn btn-primary w-100">✅Place order</button>
+    </form>
+    </div>
+  </div>
+</div>
+
+
+
+
+    <!-- Сообщения -->
+    {% if messages %}
+    <div id="messages-container">
+        {% for message in messages %}
+        <div class="flash-message {{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+
+{% endblock content %}

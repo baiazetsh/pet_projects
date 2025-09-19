@@ -1,0 +1,37 @@
+<!--topic_detail-->
+{% extends 'zz/base.html' %}
+{% load i18n %}
+
+{% block content %}
+<h1>{{ topic.name }}</h1>
+{% if topic.pk %}
+    <a href="{% url 'zz:topic_update' topic.pk %}" class="btn btn-secondary">Edit</a>
+            
+    <form action="{% url 'zz:topic_delete' topic.pk %}" method="post" style="display:inline;">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-sm btn-outline-danger">
+            Delete
+        </button>
+    </form>
+{% endif %}
+
+{% for chapter in chapters %}
+    <div class="chapter">
+        <h2><a href="{{ chapter.get_absolute_url }}">{{ chapter.title }}</a></h2>
+        <p>{{ chapter.description }}</p>
+        
+        <div class="posts">
+            {% for post in chapter.posts.all %}
+                <div class="post-preview">
+                    <h3><a href="{{ post.get_absolute_url }}">{{ post.title }}</a></h3>
+                </div>
+            {% endfor %}
+        </div>
+            
+    </div>
+{% endfor %}
+
+<a href="{% url 'zz:chapter_create' topic.id %}" class="btn btn-success">
+        {% trans "Create new chapter" %}
+</a>
+{% endblock content %}

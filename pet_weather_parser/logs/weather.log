@@ -1,0 +1,350 @@
+2025-08-30 11:36:24,112 - INFO - C:\Users\gelio\pet_projects\pet_weather_parser\weather\views.py changed, reloading.
+2025-08-30 12:38:21,244 - WARNING - Not Found: /test_map/
+2025-08-30 12:38:21,298 - WARNING - Not Found: /.well-known/appspecific/com.chrome.devtools.json
+2025-08-30 12:38:32,179 - INFO - Weather data fetched successfully for Moscow: temp 0.23°C
+2025-08-30 12:38:46,348 - WARNING - Not Found: /test_map/
+2025-08-30 12:38:46,390 - WARNING - Not Found: /.well-known/appspecific/com.chrome.devtools.json
+2025-08-30 12:39:08,370 - INFO - C:\Users\gelio\pet_projects\pet_weather_parser\weather\views.py changed, reloading.
+2025-08-30 12:40:04,772 - INFO - Weather data fetched successfully for Moscow: temp 0.23°C
+2025-08-30 12:40:05,025 - ERROR - Internal Server Error: /
+Traceback (most recent call last):
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\base.py", line 510, in parse
+    compile_func = self.tags[command]
+                   ~~~~~~~~~^^^^^^^^^
+KeyError: "'weather:test_map.html'"
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\weather\views.py", line 38, in weather_view
+    return render(request, "weather/weather.html", context)
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\shortcuts.py", line 25, in render
+    content = loader.render_to_string(template_name, context, request, using=using)
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\loader.py", line 61, in render_to_string
+    template = get_template(template_name, using=using)
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\loader.py", line 15, in get_template
+    return engine.get_template(template_name)
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\backends\django.py", line 79, in get_template
+    return Template(self.engine.get_template(template_name), self)
+                    ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\engine.py", line 177, in get_template
+    template, origin = self.find_template(template_name)
+                       ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\engine.py", line 159, in find_template
+    template = loader.get_template(name, skip=skip)
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\loaders\cached.py", line 57, in get_template
+    template = super().get_template(template_name, skip)
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\loaders\base.py", line 28, in get_template
+    return Template(
+        contents,
+    ...<2 lines>...
+        self.engine,
+    )
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\base.py", line 154, in __init__
+    self.nodelist = self.compile_nodelist()
+                    ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\base.py", line 196, in compile_nodelist
+    nodelist = parser.parse()
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\base.py", line 512, in parse
+    self.invalid_block_tag(token, command, parse_until)
+    ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\base.py", line 577, in invalid_block_tag
+    raise self.error(
+    ...<3 lines>...
+    )
+django.template.exceptions.TemplateSyntaxError: Invalid block tag on line 39: ''weather:test_map.html''. Did you forget to register or load this tag?
+2025-08-30 12:40:19,994 - INFO - Weather data fetched successfully for Moscow: temp 0.23°C
+2025-08-30 12:40:20,163 - ERROR - Internal Server Error: /
+Traceback (most recent call last):
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\weather\views.py", line 38, in weather_view
+    return render(request, "weather/weather.html", context)
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\shortcuts.py", line 25, in render
+    content = loader.render_to_string(template_name, context, request, using=using)
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\loader.py", line 62, in render_to_string
+    return template.render(context, request)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\backends\django.py", line 107, in render
+    return self.template.render(context)
+           ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\base.py", line 171, in render
+    return self._render(context)
+           ~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\base.py", line 163, in _render
+    return self.nodelist.render(context)
+           ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\base.py", line 1016, in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                               ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\base.py", line 977, in render_annotated
+    return self.render(context)
+           ~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\defaulttags.py", line 480, in render
+    url = reverse(view_name, args=args, kwargs=kwargs, current_app=current_app)
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\urls\base.py", line 98, in reverse
+    resolved_url = resolver._reverse_with_prefix(view, prefix, *args, **kwargs)
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\urls\resolvers.py", line 831, in _reverse_with_prefix
+    raise NoReverseMatch(msg)
+django.urls.exceptions.NoReverseMatch: Reverse for 'test_map.html' not found. 'test_map.html' is not a valid view function or pattern name.
+2025-08-30 12:40:31,078 - INFO - Weather data fetched successfully for Moscow: temp 0.23°C
+2025-08-30 12:40:31,155 - ERROR - Internal Server Error: /
+Traceback (most recent call last):
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\weather\views.py", line 38, in weather_view
+    return render(request, "weather/weather.html", context)
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\shortcuts.py", line 25, in render
+    content = loader.render_to_string(template_name, context, request, using=using)
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\loader.py", line 62, in render_to_string
+    return template.render(context, request)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\backends\django.py", line 107, in render
+    return self.template.render(context)
+           ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\base.py", line 171, in render
+    return self._render(context)
+           ~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\base.py", line 163, in _render
+    return self.nodelist.render(context)
+           ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\base.py", line 1016, in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                               ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\base.py", line 977, in render_annotated
+    return self.render(context)
+           ~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\defaulttags.py", line 480, in render
+    url = reverse(view_name, args=args, kwargs=kwargs, current_app=current_app)
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\urls\base.py", line 98, in reverse
+    resolved_url = resolver._reverse_with_prefix(view, prefix, *args, **kwargs)
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\urls\resolvers.py", line 831, in _reverse_with_prefix
+    raise NoReverseMatch(msg)
+django.urls.exceptions.NoReverseMatch: Reverse for 'weather/test_map.html' not found. 'weather/test_map.html' is not a valid view function or pattern name.
+2025-08-30 12:41:13,341 - INFO - Weather data fetched successfully for Moscow: temp 0.23°C
+2025-08-30 12:41:13,434 - ERROR - Internal Server Error: /
+Traceback (most recent call last):
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\base.py", line 510, in parse
+    compile_func = self.tags[command]
+                   ~~~~~~~~~^^^^^^^^^
+KeyError: "'weather/test_map.html'"
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\weather\views.py", line 38, in weather_view
+    return render(request, "weather/weather.html", context)
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\shortcuts.py", line 25, in render
+    content = loader.render_to_string(template_name, context, request, using=using)
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\loader.py", line 61, in render_to_string
+    template = get_template(template_name, using=using)
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\loader.py", line 15, in get_template
+    return engine.get_template(template_name)
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\backends\django.py", line 79, in get_template
+    return Template(self.engine.get_template(template_name), self)
+                    ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\engine.py", line 177, in get_template
+    template, origin = self.find_template(template_name)
+                       ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\engine.py", line 159, in find_template
+    template = loader.get_template(name, skip=skip)
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\loaders\cached.py", line 57, in get_template
+    template = super().get_template(template_name, skip)
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\loaders\base.py", line 28, in get_template
+    return Template(
+        contents,
+    ...<2 lines>...
+        self.engine,
+    )
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\base.py", line 154, in __init__
+    self.nodelist = self.compile_nodelist()
+                    ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\base.py", line 196, in compile_nodelist
+    nodelist = parser.parse()
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\base.py", line 512, in parse
+    self.invalid_block_tag(token, command, parse_until)
+    ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\base.py", line 577, in invalid_block_tag
+    raise self.error(
+    ...<3 lines>...
+    )
+django.template.exceptions.TemplateSyntaxError: Invalid block tag on line 39: ''weather/test_map.html''. Did you forget to register or load this tag?
+2025-08-30 18:42:46,354 - WARNING - Not Found: /test_map/
+2025-08-30 18:42:46,404 - WARNING - Not Found: /.well-known/appspecific/com.chrome.devtools.json
+2025-08-30 18:42:51,531 - INFO - Weather data fetched successfully for Moscow: temp 4.21°C
+2025-08-30 18:42:51,630 - ERROR - Internal Server Error: /
+Traceback (most recent call last):
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\base.py", line 510, in parse
+    compile_func = self.tags[command]
+                   ~~~~~~~~~^^^^^^^^^
+KeyError: "'/weather/test_map.html'"
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\weather\views.py", line 38, in weather_view
+    return render(request, "weather/weather.html", context)
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\shortcuts.py", line 25, in render
+    content = loader.render_to_string(template_name, context, request, using=using)
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\loader.py", line 61, in render_to_string
+    template = get_template(template_name, using=using)
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\loader.py", line 15, in get_template
+    return engine.get_template(template_name)
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\backends\django.py", line 79, in get_template
+    return Template(self.engine.get_template(template_name), self)
+                    ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\engine.py", line 177, in get_template
+    template, origin = self.find_template(template_name)
+                       ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\engine.py", line 159, in find_template
+    template = loader.get_template(name, skip=skip)
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\loaders\cached.py", line 57, in get_template
+    template = super().get_template(template_name, skip)
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\loaders\base.py", line 28, in get_template
+    return Template(
+        contents,
+    ...<2 lines>...
+        self.engine,
+    )
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\base.py", line 154, in __init__
+    self.nodelist = self.compile_nodelist()
+                    ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\base.py", line 196, in compile_nodelist
+    nodelist = parser.parse()
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\base.py", line 512, in parse
+    self.invalid_block_tag(token, command, parse_until)
+    ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\base.py", line 577, in invalid_block_tag
+    raise self.error(
+    ...<3 lines>...
+    )
+django.template.exceptions.TemplateSyntaxError: Invalid block tag on line 39: ''/weather/test_map.html''. Did you forget to register or load this tag?
+2025-08-30 18:43:18,568 - INFO - Weather data fetched successfully for Moscow: temp 4.21°C
+2025-08-30 18:43:18,616 - ERROR - Internal Server Error: /
+Traceback (most recent call last):
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\base.py", line 510, in parse
+    compile_func = self.tags[command]
+                   ~~~~~~~~~^^^^^^^^^
+KeyError: "'weather/test_map.html'"
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\weather\views.py", line 38, in weather_view
+    return render(request, "weather/weather.html", context)
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\shortcuts.py", line 25, in render
+    content = loader.render_to_string(template_name, context, request, using=using)
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\loader.py", line 61, in render_to_string
+    template = get_template(template_name, using=using)
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\loader.py", line 15, in get_template
+    return engine.get_template(template_name)
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\backends\django.py", line 79, in get_template
+    return Template(self.engine.get_template(template_name), self)
+                    ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\engine.py", line 177, in get_template
+    template, origin = self.find_template(template_name)
+                       ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\engine.py", line 159, in find_template
+    template = loader.get_template(name, skip=skip)
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\loaders\cached.py", line 57, in get_template
+    template = super().get_template(template_name, skip)
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\loaders\base.py", line 28, in get_template
+    return Template(
+        contents,
+    ...<2 lines>...
+        self.engine,
+    )
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\base.py", line 154, in __init__
+    self.nodelist = self.compile_nodelist()
+                    ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\base.py", line 196, in compile_nodelist
+    nodelist = parser.parse()
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\base.py", line 512, in parse
+    self.invalid_block_tag(token, command, parse_until)
+    ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\gelio\pet_projects\pet_weather_parser\venv\Lib\site-packages\django\template\base.py", line 577, in invalid_block_tag
+    raise self.error(
+    ...<3 lines>...
+    )
+django.template.exceptions.TemplateSyntaxError: Invalid block tag on line 39: ''weather/test_map.html''. Did you forget to register or load this tag?
+2025-08-30 18:44:27,905 - INFO - Weather data fetched successfully for Moscow: temp 4.21°C
+2025-08-30 18:47:35,446 - INFO - C:\Users\gelio\pet_projects\pet_weather_parser\weather\views.py changed, reloading.
+2025-08-30 18:48:03,664 - INFO - C:\Users\gelio\pet_projects\pet_weather_parser\weather\views.py changed, reloading.
+2025-08-30 18:48:06,157 - INFO - Weather data fetched successfully for Moscow: temp 19.36°C
+2025-08-30 18:53:11,223 - INFO - Weather data fetched successfully for Moscow: temp 19.36°C
+2025-08-30 18:53:15,172 - INFO - Weather data fetched successfully for Moscow: temp 19.36°C
+2025-08-30 18:56:21,699 - INFO - Weather data fetched successfully for Moscow: temp 19.36°C
+2025-08-30 18:58:32,446 - INFO - Weather data fetched successfully for Moscow: temp 19.36°C
+2025-08-30 19:01:07,286 - INFO - C:\Users\gelio\pet_projects\pet_weather_parser\weather_parser\settings.py changed, reloading.
+2025-08-30 19:03:08,769 - INFO - Weather data fetched successfully for Moscow: temp 19.36°C
+2025-08-30 19:03:13,008 - WARNING - Not Found: /.well-known/appspecific/com.chrome.devtools.json
+2025-08-30 19:05:13,148 - INFO - Weather data fetched successfully for Moscow: temp 19.36°C
+2025-08-30 19:05:13,234 - WARNING - Not Found: /.well-known/appspecific/com.chrome.devtools.json
+2025-08-30 19:12:03,393 - INFO - Weather data fetched successfully for Moscow: temp 19.38°C
+2025-08-30 19:12:03,481 - WARNING - Not Found: /.well-known/appspecific/com.chrome.devtools.json
+2025-08-30 19:26:32,089 - INFO - Weather data fetched successfully for Moscow: temp 18.4°C
+2025-08-30 19:26:32,128 - WARNING - Not Found: /.well-known/appspecific/com.chrome.devtools.json
+2025-08-30 19:47:14,005 - INFO - Weather data fetched successfully for Moscow: temp 18.4°C
+2025-08-30 19:47:21,533 - INFO - Weather data fetched successfully for Moscow: temp 18.4°C
+2025-08-30 19:47:22,043 - WARNING - Not Found: /favicon.ico
+2025-08-30 19:53:01,635 - INFO - Weather data fetched successfully for Moscow: temp 18.4°C
+2025-08-30 19:53:04,301 - INFO - Weather data fetched successfully for Moscow: temp 18.4°C
+2025-08-30 19:53:05,072 - WARNING - Not Found: /favicon.ico
+2025-08-30 19:53:13,040 - INFO - Weather data fetched successfully for paris: temp 18.83°C
+2025-08-30 20:05:13,391 - INFO - C:\Users\gelio\pet_projects\pet_weather_parser\weather\models.py changed, reloading.
+2025-08-30 20:09:27,845 - INFO - C:\Users\gelio\pet_projects\pet_weather_parser\weather\views.py changed, reloading.
+2025-08-30 20:09:32,422 - INFO - Weather data fetched successfully for paris: temp 18.81°C
+2025-08-30 20:09:33,244 - WARNING - Not Found: /favicon.ico
+2025-08-30 20:09:40,075 - INFO - Weather data fetched successfully for paris: temp 18.81°C
+2025-08-30 20:09:45,035 - INFO - Weather data fetched successfully for paris: temp 18.81°C
+2025-08-30 20:09:45,762 - WARNING - Not Found: /favicon.ico
+2025-08-30 20:09:57,110 - INFO - Weather data fetched successfully for Flemington: temp 17.28°C
+2025-08-30 20:09:57,154 - WARNING - Not Found: /.well-known/appspecific/com.chrome.devtools.json
+2025-08-30 20:11:27,871 - INFO - C:\Users\gelio\pet_projects\pet_weather_parser\weather\views.py changed, reloading.
+2025-08-30 20:15:21,526 - INFO - C:\Users\gelio\pet_projects\pet_weather_parser\weather\views.py changed, reloading.
+2025-08-30 20:15:31,975 - INFO - C:\Users\gelio\pet_projects\pet_weather_parser\weather\views.py changed, reloading.
+2025-08-30 20:18:04,780 - INFO - C:\Users\gelio\pet_projects\pet_weather_parser\weather\views.py changed, reloading.
+2025-08-30 20:21:16,102 - INFO - C:\Users\gelio\pet_projects\pet_weather_parser\weather\views.py changed, reloading.
+2025-08-30 20:22:17,208 - INFO - C:\Users\gelio\pet_projects\pet_weather_parser\weather\views.py changed, reloading.
+2025-08-30 20:23:59,279 - INFO - C:\Users\gelio\pet_projects\pet_weather_parser\weather\views.py changed, reloading.
+2025-08-30 20:37:01,744 - INFO - C:\Users\gelio\pet_projects\pet_weather_parser\weather\views.py changed, reloading.
+2025-08-30 20:38:50,938 - INFO - C:\Users\gelio\pet_projects\pet_weather_parser\weather\urls.py changed, reloading.
+2025-08-30 20:43:12,157 - INFO - C:\Users\gelio\pet_projects\pet_weather_parser\weather\views.py changed, reloading.
+2025-08-30 20:43:38,354 - INFO - C:\Users\gelio\pet_projects\pet_weather_parser\weather\views.py changed, reloading.
+2025-08-30 20:44:16,959 - INFO - C:\Users\gelio\pet_projects\pet_weather_parser\weather\urls.py changed, reloading.
+2025-08-30 20:45:01,141 - INFO - C:\Users\gelio\pet_projects\pet_weather_parser\weather\urls.py changed, reloading.
+2025-08-30 20:46:52,651 - INFO - C:\Users\gelio\pet_projects\pet_weather_parser\weather\views.py changed, reloading.
+2025-08-30 20:49:08,195 - INFO - C:\Users\gelio\pet_projects\pet_weather_parser\weather\views.py changed, reloading.
+2025-08-30 20:49:21,830 - INFO - C:\Users\gelio\pet_projects\pet_weather_parser\weather\urls.py changed, reloading.
+2025-08-30 20:49:32,377 - INFO - C:\Users\gelio\pet_projects\pet_weather_parser\weather\views.py changed, reloading.
+2025-08-30 20:51:20,685 - INFO - C:\Users\gelio\pet_projects\pet_weather_parser\weather\views.py changed, reloading.
+2025-08-30 20:52:04,776 - INFO - C:\Users\gelio\pet_projects\pet_weather_parser\weather\views.py changed, reloading.
+2025-08-30 20:52:11,029 - INFO - C:\Users\gelio\pet_projects\pet_weather_parser\weather\views.py changed, reloading.
+2025-08-30 20:52:34,022 - INFO - C:\Users\gelio\pet_projects\pet_weather_parser\weather\views.py changed, reloading.
+2025-08-30 20:53:21,353 - INFO - C:\Users\gelio\pet_projects\pet_weather_parser\weather\views.py changed, reloading.
+2025-08-30 20:53:39,971 - INFO - Weather data fetched successfully for Flemington: temp 14.94°C
+2025-08-30 20:53:40,039 - WARNING - Not Found: /.well-known/appspecific/com.chrome.devtools.json

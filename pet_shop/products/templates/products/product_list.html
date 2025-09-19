@@ -1,0 +1,243 @@
+<!-- products/product_list.html -->
+
+{% extends "base.html" %}
+
+{% block title %}Products{% endblock %}
+
+{% block content %}
+<style>
+.main-nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: #764ba2;
+  padding: 10px 0;
+  z-index: 1000;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.nav-buttons {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+  display: flex;
+  gap: 15px;
+}
+
+body {
+  padding-top: 100px;  /* чтобы контент не прятался под fixed-навигацией */
+}
+</style>
+
+
+<nav class="main-nav">
+  <div class="nav-buttons">
+    <a href="{% url 'products:product_list' %}" class="btn btn-success">Home</a>
+    <a href="{% url 'cart:cart_detail' %}" class="btn btn-success">
+        🛒 Cart (Items:{{ cart.total_items }}) (${{ cart.total_price|floatformat:2 }})
+    </a>
+  </div>
+  </nav>
+
+<!-- выбор категорий-->
+    <div class="categories">
+        <a href="{% url 'products:product_list' %}">
+        {% if not current_category %}
+            <strong>All</strong>
+        {% else %}
+            All  
+        {% endif %}
+        </a>    
+        {% for cat in list_categories %}
+            <a href="{% url 'products:product_by_category' slug=cat.slug %}">
+                {% if current_category == cat %}
+                    <strong>{{ cat.name }}</strong>
+                {% else %}
+                    {{ cat.name }}
+                {% endif %}
+            </a>
+        {% endfor %}    
+    </div>
+{% if request.GET.q %}
+    <h2>Search result for "{{ request.GET.q }}"</h2>
+{% endif %}
+
+  <!-- Форма поиска в шаблоне -->
+   <form method="get" action="{% url 'products:product_list' %}">
+    <input type="text" name="q" placeholder="Search products..." value="{{ search_query }}">
+    <input type="number" name="min_price" placeholder="Min price" value="{{ min_price }}">
+    <input type="number" name="max_price" placeholder="Max price" value="{{ max_price }}">
+    
+    <select name="sort">
+        <option value="name" {% if sort == "name" %}selected{% endif %}>Name A-Z</option>
+        <option value="-name" {% if sort == "-name" %}selected{% endif %}>Name Z-A</option>
+        <option value="price" {% if sort == "price" %}selected{% endif %}>Price low → high</option>
+        <option value="-price" {% if sort == "-price" %}selected{% endif %}>Price high → low</option>
+        <option value="-created_at" {% if sort == "-created_at" %}selected{% endif %}>Newest first</option>
+    </select>
+
+    <button type="submit" class="btn btn-primary">🔍 Search</button>
+    <a href="{% url 'products:product_list' %}" class="btn btn-secondary">Clear </a>
+</form>
+      
+
+<div class="products">
+    {% if request.GET.q %}
+        {% if page_obj %}
+            {% for product in page_obj %}
+                <div class="product-card">
+                  <h3>
+                    <a href="{% url 'products:product_detail' product.id %}">
+                        {{ product.name|title }}
+                    </a>
+                  </h3>
+                  <div  class="product-info">
+                    <span class="product-category">{{ product.category.name }}</span>
+                    <div class="product-price">Price: $ {{ product.price }}</div>
+                  </div>
+
+                  <div class="product-image-container">
+                    {% if product.image %}                        
+                        <img src="{{ product.image.url }}"
+                             alt="{{ product.name }}"
+                             class="product-image"
+                             onclick="openModal('{{ product.image.url }}', '{{ product.name }}')">
+                        
+                    {% else %}
+                        <div class="no-image">No photo</div>
+                    {% endif %}
+                  </div>
+                  <div class="product-actions">
+                    <form method="post" action="{% url 'cart:add_to_cart' product.id %}" class="cart-form">
+                        {% csrf_token %}
+                       
+                        <input type="number" name="quantity" value="1" min="1" max="99" class="quantity-input">
+                        <button type="submit" class="btn btn-primary">🛒  Add to cart</button>
+                    </form>
+
+                   
+                    <form action="{% url 'products:product_detail' product.id %}">
+                        <button type="submit" class="btn btn-view">View Details</button>
+                    </form>
+                  </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p>No results found for "{{ request.GET.q }}"</p>
+        {% endif %}
+    {% else %}
+
+    <div class="products">  
+        {% regroup list_products by category as grouped_products %}
+        <!--regroup — это встроенный тег Django, чтобы «сгруппировать список по полю».-->
+        {% for group in grouped_products %}        
+                {% for product in group.list %}       
+                    <div class="product-card">
+                    <h3>
+                        <a href="{% url 'products:product_detail' product.id %}">
+                            {{ product.name|title }}
+                        </a>
+                    </h3>
+                    <div  class="product-info">
+                        <span class="product-category">{{ product.category.name }}</span>
+                        <div class="product-price">Price: $ {{ product.price }}</div>
+                    </div>
+
+                    <div class="product-image-container">
+                        {% if product.image %}                        
+                            <img src="{{ product.image.url }}"
+                                alt="{{ product.name }}"
+                                class="product-image"
+                                onclick="openModal('{{ product.image.url }}', '{{ product.name }}')">
+                            
+                        {% else %}
+                            <div class="no-image">No photo</div>
+                        {% endif %}
+                    </div>
+                    <div class="product-actions">
+                        <form method="post" action="{% url 'cart:add_to_cart' product.id %}" class="cart-form">
+                            {% csrf_token %}
+                            {{ form.quantity }}
+                            <input type="number" name="quantity" value="1" min="1" max="99" class="quantity-input">
+                            <button type="submit" class="btn btn-primary">🛒  Add to cart</button>
+                        </form>
+
+                    
+                        <form action="{% url 'products:product_detail' product.id %}">
+                            <button type="submit" class="btn btn-view">View Details</button>
+                        </form>
+                    </div>
+                    </div>
+                {% endfor %}        
+        {% endfor %}
+      {% endif %}
+    </div>
+
+    <!-- Modal -->
+    <div id="imageModal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeModal()">&times;</span>
+            <img id="modalImage" src="" alt="" class="modal-image">
+        </div>
+    </div>
+    
+    
+
+    <!--Pagination-->
+    <div class="pagination">
+        <span class="step-links">
+            {% if page_obj.has_previous %}
+                <a href="?page={{ page_obj.previous_page_number }}">Previous</a>
+            {% endif %}
+
+            <span class="current">
+                Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+            </span>
+
+            {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}">Next</a>
+            {% endif %}
+        </span>
+    </div>
+
+
+    <!-- Сообщения -->
+        {% if messages %}
+        <div id="messages-container">
+            {% for message in messages %}
+            <div class="flash-message {{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+    <script>
+    function openModal(imageSrc, altText) {
+        document.getElementById('imageModal').style.display = 'block';
+        document.getElementById('modalImage').src = imageSrc;
+        document.getElementById('modalImage').alt = altText;
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeModal() {
+        document.getElementById('imageModal').style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+
+    // Закрытие модального окна при клике вне изображения
+    window.onclick = function(event) {
+        const modal = document.getElementById('imageModal');
+        if (event.target == modal) {
+            closeModal();
+        }
+    }
+
+    // Закрытие по Escape
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            closeModal();
+        }
+    });
+    </script>
+
+    {% endblock content %}

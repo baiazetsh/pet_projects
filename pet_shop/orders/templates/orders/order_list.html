@@ -1,0 +1,47 @@
+<!--order_list.html-->
+
+<a href="{% url 'products:product_list' %}">Home</a>
+<h3>My order list</h3>
+
+
+{% if orders %}
+<table border="1" cellspacing="0" cellpadding="5">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Date</th>
+            <th>Status</th>
+            <th>Total</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+            
+        {% for order in orders %}
+            <tr>
+                <td>{{ order.id }}</td>
+                <td>{{ order.status }}</td>
+                <td>{{ order.created_at }}</td>
+                <td>$ {{ order.total_price }}</td>
+                <td>{{ order.shipping_address }}</td>
+                <td>
+                    <a href="{% url 'orders:order_detail' order.id %}">Detail</a>
+                </tr>
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+    <p>No orders yet</p>
+{% endif %}
+
+
+
+ <!-- Сообщения -->
+    {% if messages %}
+    <div id="messages-container">
+        {% for message in messages %}
+        <div class="flash-message {{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+    </div>
+    {% endif %}

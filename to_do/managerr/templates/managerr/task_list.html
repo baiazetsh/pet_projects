@@ -1,0 +1,45 @@
+<!--task_list.html-->
+
+{% extends "managerr/base.html" %}
+
+{% block title %}My Task list{% endblock %}
+
+
+
+{% block content %}
+   <title>My Tasks</title>
+
+   <div class="filters">
+    {% if current_filter == "all" %}
+      <strong>All</strong>
+    {% else %}
+      <a href="?filter=all">All</a>
+    {% endif %}
+
+    {% if current_filter == "active" %}
+      <strong>Active</strong>
+    {% else %}
+      <a href="?filter=active">Active</a>
+    {% endif %}
+
+    {% if current_filter == "completed" %}
+      <strong>Done</strong>
+    {% else %}
+      <a href="?filter=completed">Done</a>
+    {% endif %}
+   </div>
+
+   {% for task in tasks %}
+      <h3></h3> <a href="{% url 'managerr:task_detail' task.id %}">{{ task.title }}</a></h3>
+      <input type="checkbox" disabled {% if task.status %}checked{% endif %}>
+      <p>Status: {% if task.status %}✅ Done{% else %}⏳ In progress{% endif %}</p>
+      <small>(due: {{ task.due_date|default:"—" }})</small>
+      {% if task.is_overdue %}
+      <span style="color:red;">Overdue!</span>
+      {% endif %}
+      <a href="{% url 'managerr:task_edit' task.id %}">edit task</a>
+      <a href="{% url 'managerr:task_delete' task.id %}">erase task</a>
+
+   {% endfor %}
+
+{% endblock %}

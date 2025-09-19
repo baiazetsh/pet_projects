@@ -1,0 +1,42 @@
+<!-- templates/base.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}Blogg{% endblock %}</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'blogg/blogg.css' %}">
+</head>
+<body>
+    <!-- Навбар -->
+    <nav class="navbar">
+        <a href="{% url 'blogg:new_topic' %}">New Topic</a>
+        <a href="{% url 'blogg:new_post' %}">New Post</a>
+        <a href="{% url 'blogg:index' %}">Home</a>
+        {% if user.is_authenticated %}
+            <span>Hello, {{ user.username }}</span>
+            <form method="post" action="{% url 'account:logout' %}" style="display:inline;">
+                {% csrf_token %}
+                <button type="submit">Logout</button>
+            </form>
+        {% else %}
+            <a href="{% url 'account:login' %}">Login</a>
+            <a href="{% url 'account:register' %}">Register</a>
+        {% endif %}
+    </nav>
+
+    <!-- Сообщения -->
+    {% if messages %}
+    <ul class="messages">
+        {% for message in messages %}
+        <li class="{{ message.tags }}">{{ message }}</li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+
+    <!-- Контент -->
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>

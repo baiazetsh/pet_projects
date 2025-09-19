@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Google Maps Test</title>
+    <style>#map { height: 400px; width: 100%; }</style>
+  </head>
+  <body>
+    <h3>Проверка Google Maps API Key</h3>
+    <div id="map"></div>
+
+    <script>
+      function initMap() {
+        const moscow = { lat: 55.7558, lng: 37.6173 };
+        const map = new google.maps.Map(document.getElementById("map"), {
+          zoom: 10,
+          center: moscow,
+        });
+      }
+    </script>
+    <script async
+      src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAg5wEGxS3nWQeRNHSGjR0YH6x1-5d9cOU&callback=initMap">
+    </script>
+  </body>
+</html>

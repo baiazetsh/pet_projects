@@ -1,0 +1,90 @@
+<!--products/product_detail.html-->
+
+{% extends "base.html" %}
+
+{% block title %}Products{% endblock %}
+
+{% block content %}
+
+<nav class="main-nav">
+      <div class="nav-buttons">
+        <button onclick="history.back()" class="btn btn-success">Back</button>
+        <a href="{% url 'products:product_list' %}" class="btn btn-success">Home</a>
+        <a href="{% url 'cart:cart_detail' %}" class="btn btn-success">
+            🛒 Cart (${{ cart.total_price|floatformat:2 }})
+        </a>
+      </div>
+</nav>
+  <div class="card-shadow-sw p-3 mb-4">
+    <div class="card-body">
+    <h3 class="card-title">{{current_product.name|title }}</h3>
+      <h6 class="card-subtitle text-muted mb-3">Category:  {{current_product.category}}</h6>
+      
+
+      {% if current_product.image %}
+        <img src="{{ current_product.image.url }}" alt="{{ current_product.name }}"
+           style="max-width: 200px; height: 300px; cursor: pointer;"
+           class="product-image"
+          onclick="openModal('{{ current_product.image.url }}', '{{ current_product.name }}')">
+        {% else %}
+        <p>No photo</p>
+       {% endif %}
+
+      <p><strong>Price:</strong> $ {{current_product.price}}</p>
+      <p><strong>description:</strong>  {{current_product.description}}</p>      
+      <p><strong>>In stock:</strong>  {{current_product.stock}} ea.</p>
+      <p><strong>Discount:</strong> $ {{current_product.discount}}</p>      
+      <p class="text-muted"><small> at:  {{current_product.created_at}}</small></p>        
+
+    <form method="post" action="{% url 'cart:add_to_cart' current_product.id %}">
+        {% csrf_token %}
+        
+        <div class="form-group">
+            <label for="quantity">Quantity:</label>
+            {{ form.quantity }}
+        </div>
+        <button type="submit" class="btn btn-primary">To cart</button>
+    </form>
+    </div>
+  </div>
+
+
+<!-- Modal -->
+<div id="imageModal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8);">
+    <div style="position: relative; margin: auto; padding: 20px; width: 80%; max-width: 700px; text-align: center; top: 50%; transform: translateY(-50%);">
+        <span onclick="closeModal()" style="position: absolute; top: 15px; right: 35px; color: #f1f1f1; font-size: 40px; font-weight: bold; cursor: pointer;">&times;</span>
+        <img id="modalImage" src="" alt="" style="width: 100%; height: auto;">
+    </div>
+</div>
+
+ <!-- Сообщения -->
+    {% if messages %}
+    <div id="messages-container">
+        {% for message in messages %}
+        <div class="flash-message {{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+
+<script>
+function openModal(imageSrc, altText) {
+    document.getElementById('imageModal').style.display = 'block';
+    document.getElementById('modalImage').src = imageSrc;
+    document.getElementById('modalImage').alt = altText;
+}
+
+function closeModal() {
+    document.getElementById('imageModal').style.display = 'none';
+}
+
+// Закрытие модального окна при клике вне изображения
+window.onclick = function(event) {
+    const modal = document.getElementById('imageModal');
+    if (event.target == modal) {
+        closeModal();
+    }
+}
+</script>
+
+{% endblock content %}

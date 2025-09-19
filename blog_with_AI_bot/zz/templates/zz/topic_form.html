@@ -1,0 +1,52 @@
+<!-- templates/blg/topic_form.html -->
+{% extends 'zz/base.html' %}
+{% load i18n %}
+
+{% block content %}
+<h3>Topic detail</h3>
+<div class="container mt-4" style="max-width: 600px;">
+    <h2>
+        {% if object %}  <!-- ← object доступен в UpdateView -->
+            {% trans "Редактировать тему" %}
+        {% else %}
+            {% trans "Создать новую тему" %}
+        {% endif %}
+    </h2>
+
+    <form method="post" class="card p-4 shadow">
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+            <div class="alert alert-danger">
+                {% for error in form.non_field_errors %}
+                    {{ error }}
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <div class="mb-3">
+            {{ form.name.label_tag }}
+            {{ form.name }}
+            {% if form.name.help_text %}
+                <div class="form-text text-muted">{{ form.name.help_text }}</div>
+            {% endif %}
+            {% for error in form.name.errors %}
+                <div class="text-danger small mt-1">{{ error }}</div>
+            {% endfor %}
+        </div>
+
+        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+            <a href="{% url 'zz:index' %}" class="btn btn-outline-secondary">
+                {% trans "Отмена" %}
+            </a>
+            <button type="submit" class="btn btn-success">
+                {% if object %}
+                    {% trans "Сохранить изменения" %}
+                {% else %}
+                    {% trans "Создать тему" %}
+                {% endif %}
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,26 @@
+
+{% extends "chats/base.html" %}
+
+{% block title %}Chats{% endblock %}
+
+{% block content %}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Register</title>
+</head>
+<body>
+    <h2>Register</h2>
+
+    <form method="post" action="{% url 'users:register' %}">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit">register</button>
+    </form>
+
+    <p><a href="{% url 'users:login' %}">Login</a></p>
+    
+</html>
+
+{% endblock content %}

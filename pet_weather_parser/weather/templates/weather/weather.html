@@ -1,0 +1,50 @@
+<!--weather.html-->
+
+
+{% if error %}
+    <div class="alert alert-danger">
+        {{ error }}
+    </div>
+{% else %}
+    <!-- форма поиска -->
+    <form method="get" action="">
+        <input type="text" name="city" placeholder="Enter the city" value="{{ city }}"
+        <button type="submit">Show</button>
+    </form>
+
+
+    <h2>Погода</h2>
+    <p>Температура: {{ weather.main.temp }}°C</p>
+    <p>Влажность: {{ weather.main.humidity }}%</p>
+    <p>Ветер: {{ weather.wind.speed }} м/с</p>
+    <p>Описание: {{ weather.weather.0.description }}</p>
+
+
+<!-- Карта -->
+    <div id="map" style="height: 400px; width: 100%; margin-top: 20px;"></div>
+
+    <script>
+        function initMap() {
+            const coords = { lat: {{ weather.coord.lat }}, lng: {{ weather.coord.lon }} };
+            const map = new google.maps.Map(document.getElementById("map"), {
+                center: coords,
+                zoom: 10,
+            });
+            new google.maps.Marker({
+                position: coords,
+                map: map,
+                title: "{{ city }}"
+            });
+        }
+    </script>
+    <!-- Подключение Google Maps API с ключом -->
+    <script async defer
+        src="https://maps.googleapis.com/maps/api/js?key={{ api_key }}&callback=initMap">
+    </script>
+{% endif %}
+
+
+
+
+
+

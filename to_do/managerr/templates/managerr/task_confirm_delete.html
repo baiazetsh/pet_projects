@@ -1,0 +1,20 @@
+<!--task_confirm_delete.html-->
+{% extends "managerr/base.html" %}
+
+{% block title %}Task confirm delete{% endblock %}
+
+
+{% block content %}
+
+
+
+<h2>Delete task "{{ task.title }}"?</h2>
+
+<form method="post">
+  {% csrf_token %}
+  <button type="submit">Yes, delete</button>
+  <a href="{% url 'managerr:task_list' %}">Cancel</a>
+</form>
+
+
+{% endblock content %}

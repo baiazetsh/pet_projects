@@ -1,0 +1,21 @@
+<!--new_message.html-->
+
+{% extends "chats/base.html" %}
+
+{% block title %}Chats{% endblock %}
+
+
+{% block content %}
+
+<H3>Add new message to "{{ chat.topic }}" </H3>
+<form method="post" action="{% url 'chats:new_message' chat.id %}" >
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit" class="btn btn-primary">Send</button>
+</form>
+
+<a href="{% url 'chats:chat_detail' chat.id %}">Back to chat</a>
+
+
+
+{% endblock content %}

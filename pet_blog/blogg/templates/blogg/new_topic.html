@@ -1,0 +1,21 @@
+<!--blogg/new_topic.html-->
+<!DOCTYPE html>
+<html>
+<head>
+<title>New topic</title>
+{% load static %}
+<link rel="stylesheet" type="text/css" href="{% static 'blogg/blogg.css' %}">
+</head>
+<body>
+    <h1> Make a new topic</h1>
+    <form action = "{% url 'blogg:new_topic' %}" method='post'>
+        {% csrf_token %}
+        {{ form.as_p}}
+        <button type="submit">Save</button>
+    </form>
+    
+    <p><a href="{% url 'blogg:new_post' %}">Create new post</a></p>
+    <p><a href="{% url 'blogg:index' %}">Home</a></p>
+</body>
+</html>
+ 

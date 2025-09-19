@@ -1,0 +1,26 @@
+<!--comment.html-->
+{% load i18n %}
+
+<li class="mb-3">
+    <div class="border p-2">
+        <p><strong>{{ comment.author }}</strong> — {{ comment.created_at|date:"SHORT_DATETIME_FORMAT" }}</p>
+        <p>{{ comment.content }}</p>
+
+        <!-- Форма ответа -->
+        <form method="post" class="mb-2">
+            {% csrf_token %}
+            <input type="hidden" name="parent_id" value="{{ comment.id }}">
+            <textarea name="content" class="form-control mb-1" rows="2" placeholder="{% trans 'Reply...' %}"></textarea>
+            <button type="submit" class="btn btn-sm btn-outline-primary">{% trans "Reply" %}</button>
+        </form>
+    </div>
+
+    <!-- Дети -->
+    {% if comment.replies.exists %}
+        <ul class="ms-4 list-unstyled">
+            {% for reply in comment.replies.all %}
+                {% include "zz/comment.html" with comment=reply %}
+            {% endfor %}
+        </ul>
+    {% endif %}
+</li>
