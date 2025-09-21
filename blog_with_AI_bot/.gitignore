@@ -1,0 +1,50 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+
+# ---- Virtual Envs ----
+venv*/
+.env*/
+.venv*/
+env*/
+
+# ---- Environment files ----
+.env
+*.env
+
+# ---- Django ----
+*.log
+*.pot
+*.pyc
+*.sqlite3
+db.sqlite3
+media/
+staticfiles/
+static/
+*.py,cover
+
+# Migrations (кроме __init__.py)
+*/migrations/*
+!*/migrations/__init__.py
+
+# ---- Jupyter ----
+.ipynb_checkpoints
+
+# ---- IDE ----
+.vscode/
+.idea/
+*.iml
+
+# ---- OS ----
+.DS_Store
+Thumbs.db
+
+# ---- Other ----
+*.swp
+*.swo
+*.bak
+*.tmp
+
+
