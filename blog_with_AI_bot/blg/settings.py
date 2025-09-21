@@ -136,23 +136,26 @@ LOGGING = {
 OLLAMA_MODEL4b = "qwen3:4b"
 OLLAMA_MODEL8b = "qwen3:8b"
 OLLAMA_MODEL = "gemma3:1b"
-OLLAMA_URL = "http://ollama:11434"
-#OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
+OLLAMA_URL = "http://ollama:11434" #for Docker
+#OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434") # for local work
 
 CELERY_BROKER_URL = "redis://127.0.0.1:6379/0"
-CELERY_RESULT_BACKEND = "redis://127.0.0.1:6379/0"
-CELERY_IMPORTS = ('blg.tasks',)
+#CELERY_RESULT_BACKEND = "redis://127.0.0.1:6379/0"
+CELERY_RESULT_BACKEND = "redis://redis:6379/1"
+
+CELERY_IMPORTS = ('zz.tasks',)
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = "UTC"
 
-CELERY_TASK_ALWAYS_EAGER = True
+# !!! Только для тестов, чтобы задачи выполнялись сразу
+#CELERY_TASK_ALWAYS_EAGER = True
 
 # Включить/выключить Celery для ботов
 
-USE_CELERY = False #→ использует threading с функцией generate_bot_reply_sync
-#USE_CELERY = True #→ использует Celery с задачей generate_bot_reply_task
+#USE_CELERY = False #→ использует threading с функцией generate_bot_reply_sync
+USE_CELERY = True #→ использует Celery с задачей generate_bot_reply_task
 
 
 

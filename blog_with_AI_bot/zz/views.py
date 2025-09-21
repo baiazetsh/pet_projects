@@ -3,7 +3,7 @@ from urllib import request
 from django.db.models.fields import json
 from django.db.models.query import QuerySet
 from django.forms import BaseModelForm
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.urls import reverse_lazy
 from django.views.generic import UpdateView, CreateView, ListView, DetailView
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -16,8 +16,9 @@ from django.core.paginator import Paginator
 from django.core.exceptions import PermissionDenied
 from django.views import View
 from django.conf import settings
-
+from zz.tasks import summarize_post
 from .signals import call_ubludok
+from celery.result import AsyncResult
 
 #обработка кнопки " позвать ублюдка"
 def summon_ubludok(request):
@@ -36,6 +37,36 @@ def summon_ubludok(request):
     # если в POST передали next → редиректим туда, иначе на главную
     next_url = request.POST.get("next", "/")
     return redirect(next_url)
+
+
+class SummarizePostView(View):
+    def post(self, request, pk):
+        post = get_object_or_404(Post, pk=pk)
+        task = summarize_post.delay(post.id)
+        return JsonResponse({"task_id": task.id, "status": "started"})
+    
+    def get(self, request, pk):
+        """Check the task status by task_id"""
+        task_id  = request.GET.get("task_id")
+        if not task_id:
+            return JsonResponse({"error": "task_id is required"}, status=400)
+            
+        task_result = AsyncResult(task_id)
+        
+        if task_result.state == "PENDING":
+            return JsonResponse({"status": "pending"})
+        elif task_result.state == "STARTED":
+            return JsonResponse({"status": "running"})
+        elif task_result.state == "FAILURE":
+            error_message = str(task_result.info) if task_result.info else "Unknown error"
+            return JsonResponse({"status": "error", "message": str(task_result.info)})
+        elif task_result.state == "SUCCESS":
+            # summary is already saved in Post, you can return it immediately
+            post = get_object_or_404(Post, pk=pk)
+            summary = post.summary or "Summarising is done, but result is empty"
+            return JsonResponse({"status": "done", "summary": summary})
+
+        return JsonResponse({"status": task_result.state})
     
 
 class TopicListView(LoginRequiredMixin, ListView):

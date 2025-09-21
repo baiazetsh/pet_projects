@@ -31,7 +31,7 @@ services:
   celery:
     build: .
     container_name: django-celery
-    command: celery -A blg worker -l info -P solo --concurrency=1
+    command: celery -A blg worker -l info 
     volumes:
       - .:/app
     environment:
@@ -61,7 +61,18 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 40s
+      start_period: 120s
+
+  flower:
+    image: mher/flower
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - FLOWER_BASIC_AUTH=${FLOWER_USER}:${FLOWER_PASSWORD}
+    ports:
+      - "5555:5555"
+    depends_on:
+      - redis
+      - celery
 
 volumes:
   ollama-data:

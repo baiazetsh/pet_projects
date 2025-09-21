@@ -1,35 +1,61 @@
 #tasks.py
 from celery import shared_task
+from click import prompt
 from zz.models import Post, Chapter, Comment
-from ollama import Client
 from django.contrib.auth import get_user_model
 from django.conf import settings
 import re
 import time
 import random
 import logging
+from zz.utils.bots import ensure_bot_user
+from zz.utils.ollama_client import (
+    generate_text, 
+    clean_response, 
+    list_models, 
+    check_model_availability, 
+    get_ollama_client
+)
+from django.shortcuts import get_object_or_404
+
 
 logger = logging.getLogger(__name__)
 
-def clean_response(text: str) -> str:
-    """Удаляет служебные размышления (<think>...</think>)."""
-    return re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
-
-def ensure_bot_user(bot_profile):
-    """Создаёт или получает пользователя-бота"""
-    User = get_user_model()
-    from django.db.utils import IntegrityError
+@shared_task(bind=True, max_retries=3)
+def summarize_post(self, post_id: int) -> str:
+    """
+    Async task: to make short summary of post with Ollama
+    """
     try:
-        bot_user, _  = User.objects.get_or_create(
-            username=bot_profile["username"],
-            defaults={
-                'email': f"{bot_profile['username'].lower()}@site.com",
-                'is_active':True,
-            }
+        post = get_object_or_404(Post, pk=post_id)
+
+        prompt =(
+            f"Сделай краткое резюме текста (3–4 предложения, без воды, по сути):\n\n"
+            f"{post.content[:1500]}"            
         )
-        return bot_user
-    except IntegrityError:
-        return User.objects.get(username=bot_profile["username"])
+        # Text generation with Ollama
+        raw_text = generate_text(
+            prompt=prompt,
+            model=settings.OLLAMA_MODEL
+        )
+
+        summary = clean_response(raw_text).strip()
+
+        if not summary:
+            summary = "🤷 The model was not unable to generate a resume. "
+
+        #save into DB
+        post.summary = summary
+        post.save(update_fields=["summary"])
+
+        logger.info(f"[SUMMARY] Post {post.id}: {summary[:60]}...")
+        return summary
+
+    except Exception as e:
+        logger.error(f"[SUMMARY ERROR] post_id={post_id}: {e}")
+        raise self.retry(exc=e, countdown=5)
+
+
 
 @shared_task
 def generate_post(chapter_id, title):
@@ -61,14 +87,14 @@ def generate_bot_reply_task(comment_id, bot_profile):
             return {"error": "OLLAMA_MODEL not configured"}
         
         # История последних 5 комментов
-        recent_comments = Comment.objects.filter(post=instance.post).order_by("created_at")[:5]
+        recent_comments = Comment.objects.filter(post=instance.post).order_by("-created_at")[:5]
         dialogue = "\n".join(f"{c.author.username}:{c.content}" for c in reversed(recent_comments))
         
         logger.info(f"[{username}] Готовлю ответ на коммент id={instance.id}")
         
         # Запрос к модели
         try:
-            client = Client()
+            client = get_ollama_client()
             response = client.chat(
                 model=settings.OLLAMA_MODEL,
                 messages=[
@@ -109,4 +135,4 @@ def generate_bot_reply_task(comment_id, bot_profile):
     except Exception as e:
         logger.error(f"[{bot_profile.get('username', 'BOT')} ERROR] {e}")
         return {"error": str(e)}
-    
+

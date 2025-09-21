@@ -5,15 +5,23 @@ import re
 import random
 import logging
 from django.db.models.signals import post_save
-from django.dispatch import receiver
 from django.contrib.auth import get_user_model
 from django.conf import settings
 from zz.models import Comment
-from ollama import Client
 from django.db.utils import IntegrityError
-
+from zz.utils.bots import ensure_bot_user
 from  django.dispatch import receiver, Signal
+from zz.utils.ollama_client import (
+    generate_text, 
+    clean_response, 
+    list_models, 
+    check_model_availability,
+    get_ollama_client
+    
+)
 
+# Настройка логгера
+logger = logging.getLogger(__name__)
 
 #условный импорт Celery задач только если включен Celery
 if getattr(settings, "USE_CELERY", False):
@@ -36,7 +44,7 @@ def handle_call_ubludok(sender, user=None, post=None, **kwargs):
     # Запускаем генерацию для первого бота
     bot = BOTS[0] #neuroubludok
     
-    if getattr(settings, "USER_CELERY", False):
+    if getattr(settings, "USE_CELERY", False):
         logger.info("[SIGNAL] Запуск через Celery")
         generate_bot_reply_task.delay(last_comment.id, bot)
     else:
@@ -48,40 +56,9 @@ def handle_call_ubludok(sender, user=None, post=None, **kwargs):
         )
         thread.start()
     
-    print("⚡ Нейроублюдок призван для поста {post.id}!")
+    print(f"⚡ Нейроублюдок призван для поста {post.id}!")
     
-# Настройка логгера
-logger = logging.getLogger(__name__)
-client = Client()
 
-# отложенная инициализация клиента
-def get_ollama_client():
-    """Создает клиент Ollama при первом вызове"""
-    if not hasattr(get_ollama_client, '_client'):
-        get_ollama_client._client = Client(host=settings.OLLAMA_URL)
-    return get_ollama_client._client    
-
-# ---------- Утилиты ----------
-
-def clean_response(text: str) -> str:
-    """Удаляет служебные размышления (<think>...</think>)."""
-    return re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
-
-def ensure_bot_user(bot_profile):
-    # Создаёт или получает пользователя-бота
-    User = get_user_model()
-    try:
-        bot_user, _ = User.objects.get_or_create(
-            username=bot_profile["username"],
-            defaults={
-                'email': f"{bot_profile['username'].lower()}@site.com",
-                'is_active': True,
-                }
-        )
-        return bot_user
-    except IntegrityError:
-        return User.objects.get(username=bot_profile["username"])    
-        
 # ---------- Настройки ботов ----------
 
 BOTS = [

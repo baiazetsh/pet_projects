@@ -13,16 +13,18 @@
     <p>{{ post.content|truncatewords:30 }}</p>
     <p><small>{{ post.created_at }}</small></p>
 
-        {% if post.pk %}     
-        <a href="{% url 'zz:post_update' post.pk %}" class="btn btn-secondary">Edit</a>
+    {% if post.pk %}     
+    <a href="{% url 'zz:post_update' post.pk %}" class="btn btn-secondary">Edit</a>
 
-        <form action="{% url 'zz:post_delete' post.pk %}" method="post" style="display:inline;">
-            {% csrf_token %}
-            <button type="submit" class="btn btn-sm btn-outline-danger">
-                Delete
-            </button>
-        </form>
+    <form action="{% url 'zz:post_delete' post.pk %}" method="post" style="display:inline;">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-sm btn-outline-danger">
+            Delete
+        </button>
+    </form>
 
+    <button id="summarize-btn" class="btn btn-warning">Summarize</button>
+    <div id="summary-box"></div>
 
     {% endif %}
 </div>
@@ -56,7 +58,33 @@
         {% endfor %}
     </ul>
 
-      
+<script>
+const btn = document.getElementById("summarize-btn");
+btn.addEventListener("click", function(){
+    fetch("{% url 'zz:post_summarize' post.pk %}", {
+        method: "POST",
+        headers: {"X-CSRFToken": "{{ csrf_token }}"}
+    })
+    .then(r => r.json())
+    .then(data => {
+        console.log("Launched", data);
+        let taskId = data.task_id;
 
+        //we start querying the status
+        const interval = setInterval(() => {
+            fetch(`{% url 'zz:post_summarize' post.pk %}?task_id=${taskId}`)
+            .then(r => r.json())
+            .then(statusData => {
+                console.log("Status:", statusData);
+                if (statusData.status === "done") {
+                    clearInterval(interval);
+                    document.getElementById("summary-box").innerHTML =
+                        `<p><strong>Resume:</strong>${statusData.summary}</p>`;
+                }
+            });
+        }, 2000);
+    });
+});
+</script>
 
 {% endblock %}

@@ -84,6 +84,7 @@ class Post(models.Model):
         default=0,
         help_text=_("Use for sort posts in chapter")
             )
+    summary = models.TextField(blank=True, null=True)
 
     class Meta:
         verbose_name = _("Post")

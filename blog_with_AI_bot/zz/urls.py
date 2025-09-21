@@ -24,5 +24,5 @@ urlpatterns =[
     path('posts/<int:pk>/delete/', views.PostDeleteView.as_view(), name="post_delete"),
     
     path('summon/', views.summon_ubludok, name='summon_ubludok'),
-    
+    path("posts/<int:pk>/summarize/", views.SummarizePostView.as_view(), name="post_summarize")
 ]

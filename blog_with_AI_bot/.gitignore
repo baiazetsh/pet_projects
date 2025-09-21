@@ -1,8 +1,9 @@
+# C:\Users\gelio\pet_projects\blog_with_AI_bot\.gitignore
 # ---- Python ----
 __pycache__/
 *.py[cod]
 *$py.class
-*.pyc
+
 
 # ---- Virtual Envs ----
 venv*/
@@ -23,7 +24,7 @@ db.sqlite3
 media/
 staticfiles/
 static/
-*.py,cover
+
 
 # Migrations (кроме __init__.py)
 */migrations/*
@@ -46,5 +47,6 @@ Thumbs.db
 *.swo
 *.bak
 *.tmp
-
+.coverage
+*.cover
 
