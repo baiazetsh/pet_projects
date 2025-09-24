@@ -17,26 +17,29 @@ from django.core.exceptions import PermissionDenied
 from django.views import View
 from django.conf import settings
 from zz.tasks import summarize_post
-from .signals import call_ubludok
+from zz.signals import call_ubludok
 from celery.result import AsyncResult
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
+from zz.utils import notify_new_comment
+import json
 
 #обработка кнопки " позвать ублюдка"
-def summon_ubludok(request):
-    if request.method == "POST":
-        post_id = request.POST.get("post_id")
-        if not post_id:
-            messages.error(request, "❌ post_id не передан в форму")
-            return redirect("/")
-        
-        post = get_object_or_404(Post, pk=post_id)
-        
-        # передаём пост в сигнал
+def summon_ubludok(request, pk):
+    if request.method == "POST":             
+        post = get_object_or_404(Post, pk=pk)  
+              
         call_ubludok.send(sender=None, user=request.user, post=post)
-        messages.success(request, f"Ты позвал ублюдка к посту:{post.id}")
         
-    # если в POST передали next → редиректим туда, иначе на главную
-    next_url = request.POST.get("next", "/")
-    return redirect(next_url)
+        return JsonResponse({
+            "success": True,
+            "message": f"The bastard is calledfor post:{post.id}"
+            })
+    return JsonResponse({
+        "success": False,
+        "message": "wrong method"},
+                        status=400
+                        )
 
 
 class SummarizePostView(View):
@@ -259,8 +262,116 @@ class ChapterDeleteView(LoginRequiredMixin, View):
         chapter.delete()
         messages.success(request, "Chapter deleted")
         return redirect("zz:topic_detail", pk=topic_pk)
-
     
+# zz/views.py
+from django.views.generic import DetailView
+from django.shortcuts import get_object_or_404
+from django.http import JsonResponse
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.utils.translation import gettext_lazy as _
+from django.contrib import messages
+
+from .models import Post, Comment
+from .forms import CommentForm
+from zz.utils import notify_new_comment
+
+
+class PostDetailView(LoginRequiredMixin, DetailView):
+    model = Post
+    template_name = 'zz/post_detail.html'
+    context_object_name = 'post'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['comments'] = (
+            Comment.objects.filter(post=self.object, parent__isnull=True)
+            .select_related('author')
+            .order_by('-created_at')
+        )
+        context['form'] = CommentForm()
+        context['chapter'] = getattr(self.object, "chapter", None)
+        return context
+
+    def post(self, request, *args, **kwargs):
+        """Создание комментария через AJAX"""
+        self.object = self.get_object()
+        form = CommentForm(request.POST)
+
+        if not form.is_valid():
+            return JsonResponse({
+                "success": False,
+                "errors": form.errors,
+            }, status=400)
+
+        comment = form.save(commit=False)
+        comment.post = self.object
+        comment.author = request.user
+        parent_id = request.POST.get("parent_id")
+        if parent_id:
+            comment.parent = Comment.objects.filter(id=parent_id).first()
+        comment.save()
+
+        # пушим всем по WebSocket
+        notify_new_comment(comment)
+
+        return JsonResponse({
+            "success": True,
+            "comment": {
+                "id": comment.id,
+                "author": comment.author.username,
+                "content": comment.content,
+                "created_at": comment.created_at.isoformat(),
+                "parent_id": comment.parent.id if comment.parent else None,
+            }
+        })
+    
+
+"""
+class PostDetailView(DetailView):
+    model = Post
+    template_name = 'zz/post_detail.html'
+    context_object_name = 'post'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['comments'] = Comment.objects.filter(
+            post=self.object
+        ).select_related('author').order_by('-created_at')
+        context['form'] = CommentForm()
+        context['chapter'] = getattr(self.object, 'chapter', None)
+        return context
+
+    def post(self, request, *args, **kwargs):
+        #Создание комментария — всегда JSON
+        self.object = self.get_object()
+        form = CommentForm(request.POST)
+
+        if form.is_valid():
+            comment = form.save(commit=False)
+            comment.post = self.object
+            comment.author = request.user
+            comment.save()
+
+            # пушим в WebSocket
+            notify_new_comment(comment)
+
+            return JsonResponse({
+                'success': True,
+                'comment': {
+                    'id': comment.id,
+                    'author': comment.author.username,
+                    'content': comment.content,
+                    'created_at': comment.created_at.isoformat(),
+                }
+            })
+
+        return JsonResponse({
+            'success': False,
+            'errors': form.errors
+        }, status=400)
+    
+
+  
 class PostDetailView(LoginRequiredMixin, DetailView):
     model = Post
     template_name = 'zz/post_detail.html'
@@ -282,9 +393,22 @@ class PostDetailView(LoginRequiredMixin, DetailView):
                 comment.parent = Comment.objects.filter(id=parent_id).first()
             
             comment.save()
-            return redirect("zz:post_detail", pk=post.pk)
+            
+            # 🔥 уведомляем WebSocket-группу
+            from zz.utils import notify_new_comment
+            notify_new_comment(comment)
+            
+            return JsonResponse({
+                "success": True,
+                "comment": {
+                    "id": comment.id,
+                    "author": comment.author.username,
+                    "content": comment.content,
+                    "created_at": comment.created_at.isoformat(),
+                }
+            })
         
-        return self.get(request, *args, **kwargs)
+        return JsonResponse({"success": False, "errors": form.errors}, status=400)
             
     
     def get_context_data(self, **kwargs):
@@ -297,7 +421,70 @@ class PostDetailView(LoginRequiredMixin, DetailView):
         
         return context
 
+# В zz/views.py найдите и замените PostDetailView на эту версию:
 
+class PostDetailView(DetailView):
+    model = Post
+    template_name = 'zz/post_detail.html'
+    context_object_name = 'post'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['comments'] = Comment.objects.filter(
+            post=self.object
+        ).select_related('author').order_by('created_at')
+        context['form'] = CommentForm()
+        
+        # Получаем chapter для отображения в шаблоне
+        try:
+            context['chapter'] = self.object.chapter
+        except AttributeError:
+            context['chapter'] = None
+            
+        return context
+    
+    def post(self, request, *args, **kwargs):
+        #Обработка POST запросов (создание комментариев)
+        self.object = self.get_object()
+        form = CommentForm(request.POST)
+        
+        if form.is_valid():
+            comment = form.save(commit=False)
+            comment.post = self.object
+            comment.author = request.user
+            comment.save()
+            
+            # Отправляем WebSocket уведомление
+            notify_new_comment(comment)
+            
+            # Проверяем, AJAX ли это запрос
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': True,
+                    'comment': {
+                        'id': comment.id,
+                        'author': comment.author.username,
+                        'content': comment.content,
+                        'created_at': comment.created_at.isoformat(),
+                    }
+                })
+            else:
+                # Обычный POST запрос - редирект
+                messages.success(request, _('Comment added successfully!'))
+                return redirect('zz:post_detail', pk=self.object.pk)
+        else:
+            # Форма невалидна
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': False,
+                    'errors': form.errors
+                }, status=400)
+            else:
+                # Показываем форму с ошибками
+                context = self.get_context_data()
+                context['form'] = form
+                return self.render_to_response(context)
+"""
 class PostUpdateView(LoginRequiredMixin, UpdateView):
     model = Post
     form_class = PostForm

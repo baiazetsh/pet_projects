@@ -1,90 +1,270 @@
-<!--post_detail-->
 {% extends 'zz/base.html' %}
 {% load i18n %}
 
 {% block content %}
 <h3>Post detail</h3>
+
 <h1>{{ chapter.title }}</h1>
 <p>{{ chapter.description }}</p>
 
-
 <div class="post">
-    <h1>{{ post.title }}</h1>
-    <p>{{ post.content|truncatewords:30 }}</p>
-    <p><small>{{ post.created_at }}</small></p>
+  <h1>{{ post.title }}</h1>
+  <p>{{ post.content }}</p>
+  <p><small>{{ post.created_at }}</small></p>
 
-    {% if post.pk %}     
-    <a href="{% url 'zz:post_update' post.pk %}" class="btn btn-secondary">Edit</a>
+  {% if post.pk %}
+  <a href="{% url 'zz:post_update' post.pk %}" class="btn btn-secondary">Edit</a>
 
-    <form action="{% url 'zz:post_delete' post.pk %}" method="post" style="display:inline;">
-        {% csrf_token %}
-        <button type="submit" class="btn btn-sm btn-outline-danger">
-            Delete
-        </button>
-    </form>
+  <form action="{% url 'zz:post_delete' post.pk %}" method="post" style="display:inline;">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-sm btn-outline-danger">
+      Delete
+    </button>
+  </form>
 
-    <button id="summarize-btn" class="btn btn-warning">Summarize</button>
-    <div id="summary-box"></div>
-
-    {% endif %}
+  <!-- Summarize -->
+  <button id="summarize-btn" class="btn btn-warning">Summarize</button>
+  <div id="summary-box"></div>
+  {% endif %}
 </div>
 
-    <h3>{% trans "Add a comment " %}</h3>
-    <form method="post">
-        {% csrf_token %}
-        {{ form.as_p }}
-        <button type="submit" class="btn btn-primary">{% trans "Send" %}</button>
-    </form>
-    <h3>{% trans "Comments" %}</h3>
+<hr>
 
-    <!--call ubludok button-->
-    <form action="{% url 'zz:summon_ubludok' %}" method="post">
-        {% csrf_token %}
-        <input type="hidden" name="post_id" value="{{ post.pk }}">
-        <input type="hidden" name="next" value="{{ request.path }}">
-        <button type="submit" class="btn btn-danger">
-            {% trans "Позвать ублюдка" %}
-        </button>
-    </form>
+<!-- Главная форма -->
+<h3>{% trans "Add a comment" %}</h3>
+<form id="commentForm" method="post" action="{% url 'zz:post_detail' post.pk %}">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <button type="submit" class="btn btn-primary">{% trans "Send" %}</button>
+</form>
+
+<hr>
+
+<!-- Кнопка вызова ублюдка -->
+<button id="ubludokBtn"
+        data-url="{% url 'zz:summon_ubludok' post.pk %}"
+        class="btn btn-danger">
+  {% trans "Call the Ubludok" %}
+</button>
+<div id="ubludok-status" class="mt-2 text-muted"></div>
+<hr>
+
+<!-- Список комментариев -->
+<h3>{% trans "Comments" %}</h3>
+<ul id="comments-list">
+  {% for comment in comments %}
+    {% include "comments/_comment.html" with comment=comment %}
+  {% empty %}
+    <li>{% trans "No comments yet" %}</li>
+  {% endfor %}
+</ul>
 
 
-    <ul class="list-unstyled">
-        {% for comment in comments %}
-            
-                {% include "zz/comment.html" with comment=comment %}
-        {% empty %}
-                <li>{% trans "No comments yet" %}</li>
-            
-        {% endfor %}
-    </ul>
+
 
 <script>
-const btn = document.getElementById("summarize-btn");
-btn.addEventListener("click", function(){
-    fetch("{% url 'zz:post_summarize' post.pk %}", {
-        method: "POST",
-        headers: {"X-CSRFToken": "{{ csrf_token }}"}
-    })
-    .then(r => r.json())
-    .then(data => {
-        console.log("Launched", data);
-        let taskId = data.task_id;
+const CSRF = document.querySelector("[name=csrfmiddlewaretoken]").value;
+const commentsList = document.getElementById("comments-list");
 
-        //we start querying the status
-        const interval = setInterval(() => {
-            fetch(`{% url 'zz:post_summarize' post.pk %}?task_id=${taskId}`)
-            .then(r => r.json())
-            .then(statusData => {
-                console.log("Status:", statusData);
-                if (statusData.status === "done") {
-                    clearInterval(interval);
-                    document.getElementById("summary-box").innerHTML =
-                        `<p><strong>Resume:</strong>${statusData.summary}</p>`;
-                }
-            });
-        }, 2000);
-    });
-});
+// ----- Главная форма -----
+const mainForm = document.getElementById("commentForm");
+if (mainForm) {
+  mainForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const formData = new FormData(mainForm);
+
+    try {
+      const res = await fetch(mainForm.action, {
+        method: "POST",
+        headers: {
+          "X-Requested-With": "XMLHttpRequest",
+          "X-CSRFToken": CSRF,
+        },
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        mainForm.reset();
+      } else {
+        console.error("Ошибка формы:", data.errors || data);
+      }
+    } catch (err) {
+      console.error("Сеть/сервер при отправке главной формы:", err);
+    }
+  });
+}
+
+// ----- Reply формы -----
+function bindReplyForm(form) {
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const formData = new FormData(form);
+
+    try {
+      const res = await fetch(window.location.pathname, {
+        method: "POST",
+        headers: {
+          "X-Requested-With": "XMLHttpRequest",
+          "X-CSRFToken": CSRF,
+        },
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        form.reset();
+      } else {
+        console.error("Ошибка реплая:", data.errors || data);
+      }
+    } catch (err) {
+      console.error("Сеть/сервер при отправке реплая:", err);
+    }
+  });
+}
+document.querySelectorAll(".reply-form").forEach(bindReplyForm);
+
+// ----- Ублюдок -----
+const ubludokBtn = document.getElementById("ubludokBtn");
+const statusBox = document.getElementById("ubludok-status");
+
+if (ubludokBtn) {
+  ubludokBtn.addEventListener("click", async () => {
+    const url = ubludokBtn.dataset.url;
+    statusBox.textContent = "⚡ Призываю нейроублюдка...";
+
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "X-Requested-With": "XMLHttpRequest",
+          "X-CSRFToken": CSRF,
+        },
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        statusBox.textContent = "✅ Ублюдок вызван!";
+      } else {
+        statusBox.textContent = "❌ Ошибка вызова ублюдка.";
+        console.error("Ошибка вызова:", data);
+      }
+    } catch (err) {
+      statusBox.textContent = "🚨 Ошибка сети при вызове ублюдка.";
+      console.error("Сеть при вызове ублюдка:", err);
+    }
+  });
+}
+
+// ----- Summarize -----
+
+const summarizeBtn = document.getElementById("summarize-btn");
+const summaryBox = document.getElementById("summary-box");
+
+if (summarizeBtn) {
+  summarizeBtn.addEventListener("click", async () => {
+    summarizeBtn.disabled = true;
+    summarizeBtn.textContent = "⏳ Summarizing...";
+    summaryBox.textContent = "";
+
+    try {
+      const res = await fetch("{% url 'zz:post_summarize' post.pk %}", {
+        method: "POST",
+        headers: {
+          "X-CSRFToken": CSRF,
+          "X-Requested-With": "XMLHttpRequest",
+        },
+      });
+
+      const data = await res.json();
+      if (!data.task_id) {
+        summaryBox.textContent = "❌ Ошибка: задача не запущена.";
+        return;
+      }
+
+      const taskId = data.task_id;
+      let attempts = 0;
+      const maxAttempts = 80;
+
+      async function pollStatus() {
+        const statusRes = await fetch(`{% url 'zz:post_summarize' post.pk %}?task_id=${taskId}`);
+        const statusData = await statusRes.json();
+
+        if (statusData.status === "done") {
+          summaryBox.textContent = statusData.summary;
+          summarizeBtn.disabled = false;
+          summarizeBtn.textContent = "Summarize";
+        } else if (statusData.status === "error") {
+          summaryBox.textContent = "❌ Ошибка: " + statusData.message;
+          summarizeBtn.disabled = false;
+          summarizeBtn.textContent = "Summarize";
+        } else {
+          attempts++;
+          if (attempts >= maxAttempts) {
+            summaryBox.textContent = "⚠️ Превышено время ожидания.";
+            summarizeBtn.disabled = false;
+            summarizeBtn.textContent = "Summarize";
+          } else {
+            setTimeout(pollStatus, 3000);
+          }
+        }
+      }
+
+      pollStatus();
+
+    } catch (err) {
+      console.error("Summarize error:", err);
+      summaryBox.textContent = "🚨 Ошибка сети или сервера.";
+      summarizeBtn.disabled = false;
+      summarizeBtn.textContent = "Summarize";
+    }
+  });
+}
+
+
+
+// ----- WebSocket -----
+window.socket = new WebSocket(
+  (window.location.protocol === "https:" ? "wss://" : "ws://")
+  + window.location.host
+  + "/ws/posts/{{ post.pk }}/"
+);
+
+window.socket.onopen = () => console.log("✅ WS connected");
+window.socket.onclose = (e) => console.warn("⚠️ WS closed", e);
+window.socket.onerror = (err) => console.error("❌ WS error", err);
+
+
+const postId = "{{ post.pk }}";
+const socket = new WebSocket(
+  (window.location.protocol === "https:" ? "wss://" : "ws://")
+  + window.location.host
+  + "/ws/posts/" + postId + "/"
+);
+
+socket.onopen = () => console.log("✅ WS connected");
+
+socket.onmessage = (e) => {
+  console.log("📩 got from WS:", e.data);
+  const data = JSON.parse(e.data);
+  console.log("⚡ Новый комментарий:", data);
+
+  if (data.comment && data.comment.html) {
+    const commentId = `comment-${data.comment.id}`;
+    if (!document.getElementById(commentId)) {
+      commentsList.insertAdjacentHTML("afterbegin", data.comment.html);
+      const newForm = document.querySelector(`#${commentId} .reply-form`);
+      if (newForm) bindReplyForm(newForm);
+    }
+  }
+};
+
+socket.onerror = (err) => console.error("WebSocket ошибка:", err);
+socket.onclose = (e) => console.warn("WebSocket закрыт:", e);
 </script>
+
+
+
+
 
 {% endblock %}

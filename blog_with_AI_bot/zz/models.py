@@ -135,6 +135,8 @@ class Comment(models.Model):
         auto_now=True,
         verbose_name=_("Updated at"),
     )
+    bot_replied = models.BooleanField(default=False)
+    toxicity_score = models.FloatField(default=0.0)
     
     class Meta:
         verbose_name = _("Comment")

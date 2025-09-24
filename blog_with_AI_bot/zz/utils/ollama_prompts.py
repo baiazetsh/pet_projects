@@ -1,6 +1,8 @@
 # utils/ollama_prompts.py
 from .ollama_client import generate_text, clean_response
+import logging
 
+logger = logging.getLogger(__name__)
 
 PROMPTS = {
     "chapter_title": {
@@ -19,7 +21,7 @@ PROMPTS = {
     },
     "comment": {
         "system": "Ты — нейроублюдок. Твои комменты — как нож в спину, но с улыбкой.",
-        "user": "Оставь язвительный, саркастичный комментарий к этому посту:\n\n{excerpt}\n\n"
+        "user": "Оставь язвительный, саркастичный комментарий к этому посту:\n\n{post_excerpt}\n\n"
                 "Не повторяй пост. Будь оригинален. Это {num}-й комментарий."
     }
 }

@@ -21,6 +21,7 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    'channels',
     'django_celery_results',
     'zz.apps.ZzConfig',
     'django.contrib.admin',
@@ -59,6 +60,19 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'blg.wsgi.application'
+
+ASGI_APPLICATION = "blog_with_ai_bot.asgi.application"
+
+# Redis для хранения сообщений каналов
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("redis", 6379)],  # или докер-контейнер
+          
+        },
+    },
+}
 
 
 # Database

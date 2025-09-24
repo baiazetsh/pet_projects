@@ -1,9 +1,11 @@
-<!--comment.html-->
+{# templates/comments/_comment.html #}
 {% load i18n %}
 
 <li class="mb-3" id="comment-{{ comment.id }}">
-  <p><strong>{{ comment.author.username }}</strong>
-     — {{ comment.created_at|date:"SHORT_DATETIME_FORMAT" }}</p>
+  <p>
+    <strong>{{ comment.author.username }}</strong>
+    — {{ comment.created_at|date:"SHORT_DATETIME_FORMAT" }}
+  </p>
   <p>{{ comment.content }}</p>
 
   <!-- Форма ответа -->
@@ -23,7 +25,8 @@
   {% if comment.replies.exists %}
     <ul class="ms-4 list-unstyled">
       {% for reply in comment.replies.all %}
-        {% include "zz/comment.html" with comment=reply %}
+        {# ✅ рекурсивно подключаем тот же шаблон #}
+        {% include "comments/_comment.html" with comment=reply %}
       {% endfor %}
     </ul>
   {% endif %}

@@ -1,6 +1,5 @@
 #tasks.py
 from celery import shared_task
-from click import prompt
 from zz.models import Post, Chapter, Comment
 from django.contrib.auth import get_user_model
 from django.conf import settings
@@ -17,6 +16,8 @@ from zz.utils.ollama_client import (
     get_ollama_client
 )
 from django.shortcuts import get_object_or_404
+from zz.utils.utils import notify_new_comment  
+
 
 
 logger = logging.getLogger(__name__)
@@ -42,7 +43,7 @@ def summarize_post(self, post_id: int) -> str:
         summary = clean_response(raw_text).strip()
 
         if not summary:
-            summary = "🤷 The model was not unable to generate a resume. "
+            summary = "🤷 The model was unable to generate a resume. "
 
         #save into DB
         post.summary = summary
@@ -88,7 +89,10 @@ def generate_bot_reply_task(comment_id, bot_profile):
         
         # История последних 5 комментов
         recent_comments = Comment.objects.filter(post=instance.post).order_by("-created_at")[:5]
-        dialogue = "\n".join(f"{c.author.username}:{c.content}" for c in reversed(recent_comments))
+        dialogue = "\n".join(
+            f"{c.author.username}:{c.content.replace('\n', ' ')[:500]}"
+            for c in reversed(recent_comments))
+        dialogue = dialogue[:2000]
         
         logger.info(f"[{username}] Готовлю ответ на коммент id={instance.id}")
         
@@ -107,20 +111,31 @@ def generate_bot_reply_task(comment_id, bot_profile):
             logger.error(f"[{username}] Ошибка Ollama: {ollama_error}")
             reply_text = "🤷 Модель временно недоступна."
         else:
-            reply_text = clean_response(response["message"]["content"].strip())
+            reply_text = clean_response(
+                (response or {}).get("message", {}).get("content", "").strip()
+                )
+            
             if not reply_text or len(reply_text) < 3:
                 reply_text = "🤷 Нечего сказать."
 
         # имитация "подумал перед ответом"
-        time.sleep(random.randint(2, 6))
+        #time.sleep(random.randint(2, 6))
                 
         comment = Comment.objects.create(
             post=instance.post,
             author=bot_user,
-            content=reply_text
+            content=reply_text,
+            bot_replied=True
         )
+        # set a flag that there was a response to instance
+        instance.bot_replied = True
+        instance.save(update_fields=["bot_replied"])
 
-        logger.info(f"[{username}] ответил: {reply_text[:60]}...")
+        logger.info(
+            f"[{username}] ответил: {reply_text[:60]}... coment_id:{comment_id} post_id:{instance.post_id}"
+            )
+        
+        notify_new_comment(comment)
         
         return {
             "success": True,

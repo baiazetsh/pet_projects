@@ -1,0 +1,94 @@
+const summarizeBtn = document.getElementById("summarize-btn");
+const summaryBox = document.getElementById("summary-box");
+
+summarizeBtn?.addEventListener("click", () => {
+  console.log("🔥 summarize clicked");
+  socket.send(JSON.stringify({
+    type: "summarize",
+    post_id: "{{ post.pk }}"
+  }));
+});
+
+socket.onmessage = (e) => {
+  console.log("📩 from WS:", e.data);
+  const data = JSON.parse(e.data);
+
+  if (data.type === "summary") {
+    summaryBox.textContent = data.summary;
+  }
+
+  if (data.type === "summarize_started") {
+    summaryBox.textContent = "⏳ Started summarizing...";
+  }
+};
+
+
+
+
+
+
+var 2 summarize
+<script>
+const summarizeBtn = document.getElementById("summarize-btn");
+const summaryBox = document.getElementById("summary-box");
+
+if (summarizeBtn) {
+  summarizeBtn.addEventListener("click", async () => {
+    summarizeBtn.disabled = true;
+    summarizeBtn.textContent = "⏳ Summarizing...";
+    summaryBox.textContent = "";
+
+    try {
+      const res = await fetch("{% url 'zz:post_summarize' post.pk %}", {
+        method: "POST",
+        headers: {
+          "X-CSRFToken": CSRF,
+          "X-Requested-With": "XMLHttpRequest",
+        },
+      });
+
+      const data = await res.json();
+      if (!data.task_id) {
+        summaryBox.textContent = "❌ Ошибка: задача не запущена.";
+        return;
+      }
+
+      const taskId = data.task_id;
+      let attempts = 0;
+      const maxAttempts = 20;
+
+      async function pollStatus() {
+        const statusRes = await fetch(`{% url 'zz:post_summarize' post.pk %}?task_id=${taskId}`);
+        const statusData = await statusRes.json();
+
+        if (statusData.status === "done") {
+          summaryBox.textContent = statusData.summary;
+          summarizeBtn.disabled = false;
+          summarizeBtn.textContent = "Summarize";
+        } else if (statusData.status === "error") {
+          summaryBox.textContent = "❌ Ошибка: " + statusData.message;
+          summarizeBtn.disabled = false;
+          summarizeBtn.textContent = "Summarize";
+        } else {
+          attempts++;
+          if (attempts >= maxAttempts) {
+            summaryBox.textContent = "⚠️ Превышено время ожидания.";
+            summarizeBtn.disabled = false;
+            summarizeBtn.textContent = "Summarize";
+          } else {
+            setTimeout(pollStatus, 1500);
+          }
+        }
+      }
+
+      pollStatus();
+
+    } catch (err) {
+      console.error("Summarize error:", err);
+      summaryBox.textContent = "🚨 Ошибка сети или сервера.";
+      summarizeBtn.disabled = false;
+      summarizeBtn.textContent = "Summarize";
+    }
+  });
+}
+</script>
