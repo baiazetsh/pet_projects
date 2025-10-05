@@ -1,6 +1,6 @@
 #zz/urls
 from django.urls import path
-from .import views
+from . import views
 
 app_name = "zz"
 
@@ -25,6 +25,11 @@ urlpatterns =[
     
     
     path("posts/<int:pk>/summon/", views.summon_ubludok, name="summon_ubludok"),
-
     path("posts/<int:pk>/summarize/", views.SummarizePostView.as_view(), name="post_summarize"),
+
+
+    #path("prompts/manual/", views.PromptInlineView.as_view(), name="prompt_execute_inline"),
+    path("shitgen/", views.ShitgenView.as_view(), name="shitgen_form"),
+    path("chat/", views.ChatView.as_view(), name="chat"),
+    path("chat/clear/", views.ChatClearAjaxView.as_view(), name="chat_clear"),
 ]

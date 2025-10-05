@@ -1,13 +1,15 @@
 #signals
+import time
 import threading
 import random
 import logging
 from django.db.models.signals import post_save
 from django.contrib.auth import get_user_model
+
 from django.conf import settings
 
 from zz.models import Comment, Post
-from zz.utils.bots import ensure_bot_user
+from zz.utils.bots import ensure_bot_user, BOTS, BOT_USERNAMES
 from  django.dispatch import receiver, Signal
 from zz.utils.ollama_client import (
     generate_text, 
@@ -18,6 +20,8 @@ from zz.utils.ollama_client import (
     
 )
 from zz.utils import notify_new_comment
+from zz.utils.task_runner import run_task
+
 
 # Настройка логгера
 logger = logging.getLogger(__name__)
@@ -44,77 +48,26 @@ def handle_call_ubludok(sender, user=None, post=None, **kwargs):
     
     # Запускаем генерацию для первого бота
     bot = BOTS[0] #neuroubludok
-    
-    if getattr(settings, "USE_CELERY", False):
-        logger.info("[SIGNAL] Запуск через Celery")
-        generate_bot_reply_task.delay(last_comment.id, bot)
-    else:
-        logger.info("[SIGNAL] Запуск через threading")
-        thread = threading.Thread(
-            target=generate_bot_reply_sync,
-            args=(last_comment, bot),
-            daemon=True
-        )
-        thread.start()
-    
+    run_task(generate_bot_reply_sync, last_comment.id, bot, use_celery_name="generate_bot_reply_task")        
     logger.info(f"[SIGNAL] Ублюдок пошёл генерировать ответ для поста {post.id}")    
 
 # ---------- Настройки ботов ----------
-
-BOTS = [
-    {
-        "username": "NeuroUbludok",
-        "style": (
-            "Ты — NeuroUbludok. "
-            "Образованный, умный, но язвительный и высокомерный. "
-            "Любишь сарказм, интеллектуальные подколы и философские сравнения. "
-            "Часто объясняешь очевидное так, будто общаешься с идиотами. "
-            "Не пиши длинных лекций, максимум 2–3 предложения, но делай их остроумными. "
-            "Избегай прямого мата, твоя сила — в умной иронии."
-        ),
-    },
-    {
-        "username": "NeuroPsina",
-        "style": (
-            "Ты — NeuroPsina. "
-            "Лютый уличный тролль, гавкаешь на всех, используешь резкие подколы и материшься. "
-            "Пиши коротко, грубо и агрессивно. "
-            "Твой стиль — насмешки, переходы на личности, абсурдные оскорбления. "
-            "Чаще всего звучишь как дворняга, которая облаивает всё подряд. "
-            "Можно использовать мат, но не перебарщивай."
-        ),
-    },
-    {
-        "username": "NeuroBatya",
-        "style": (
-            "Ты — NeuroBatya. "
-            "Снисходительный и ностальгирующий батя, любитель советских времён и 'как было при Союзе'. "
-            "Отвечаешь как старший, всегда вставляешь упоминания про СССР, завод, очередь, 'тогда было лучше'. "
-            "Говоришь по-отечески, но с сарказмом. "
-            "Стиль — 'эх, молодёжь...', 'в наше время...', 'при Союзе такого не было'. "
-            "Можно быть слегка ворчливым и ехидным."
-        ),
-    },
-]
-
-
-BOT_USERNAMES = [bot["username"] for bot in BOTS]
 
 def dynamic_probability(comment_count: int) -> float:    
     # Чем больше комментариев в треде, тем меньше вероятность ответа.
     if comment_count <=3:
         return 0.9
     elif comment_count <=7:
-        return 0.6
+        return 0.7
     elif comment_count <=12:
-        return 0.3
+        return 0.8
     else:
-        return 0.15
+        return 0.9
     
 # ---------- Основная логика ----------
 
 def generate_bot_reply_sync(instance, bot_profile):
-    """Синхронная генерация ответа бота (для threading режима)"""
+    """Синхронная генерация ответа бота """
     try:
         # If there was already an answer → exit
         if getattr(instance, "bot_replied", False):
@@ -127,8 +80,8 @@ def generate_bot_reply_sync(instance, bot_profile):
         bot_user = ensure_bot_user(bot_profile)
         
         # проверка наличия настройки модели
-        if not hasattr(settings,'OLLAMA_MODEL') or not settings.OLLAMA_MODEL:
-            logger.error(f"[{username}] OLLAMA_MODEL не настроен в settings")
+        if not hasattr(settings,'LLM_MODEL') or not settings.LLM_MODEL:
+            logger.error(f"[{username}] LLM_MODEL не настроен в settings")
             return
         
         # История последних 5 комментов
@@ -156,7 +109,7 @@ def generate_bot_reply_sync(instance, bot_profile):
             try:
                 client = get_ollama_client()
                 response = client.chat(
-                    model=settings.OLLAMA_MODEL,
+                    model=settings.LLM_MODEL,
                         messages=[
                         {"role": "system", "content": bot_profile["style"]},
                         {"role": "user", "content": f"Вот обсуждение:\n{dialogue}\n\nОтветь на последний коммент в своём стиле. Кратко, метко, с характером."}
@@ -188,6 +141,7 @@ def generate_bot_reply_sync(instance, bot_profile):
             
             # push to WebSocket
             print(f"📡 CALL notify_new_comment for post=================={bot_comment.post_id}, id={bot_comment.id}")
+            time.sleep(1)
             notify_new_comment(bot_comment)
             
             logger.info(f"[{username}] ответил: {reply_text[:60]}...")
@@ -214,29 +168,25 @@ def fight_back(sender, instance, created, **kwargs):
     # Каждый бот решает — отвечать или нет 
     for bot in BOTS:
         prob = dynamic_probability(comment_count)
+
+        print(f"🎲 {bot['username']} chance={prob:.2f}, rolled={random.random()}")
+
         
         if random.random() < prob:
             logger.info(f"[{bot['username']}] Вероятность {prob:.2f} сработала — генерирую ответ.")
-              
-            # правильное переключение между Celery и threading                                       
-            if getattr(settings, "USE_CELERY", False):
-                # Celery режим
-                logger.info(f"[{bot['username']}] Запускаю Celery-задачу")
-                generate_bot_reply_task.delay(instance.id, bot)
-            
-            else:
-                # Отладочный режим (threading)
-                logger.info(f"[{bot['username']}] Запускаю поток (threading)")
-                thread = threading.Thread(
-                    target=generate_bot_reply_sync,
-                    args=(instance, bot),
-                    daemon=True # поток не блокирует завершение приложения
-                )
-                thread.start()
-                 
+            run_task(generate_bot_reply_sync, instance.id, bot, use_celery_name="generate_bot_reply_task")
+            logger.info(f"🚀 отправил задачу run_task для {bot['username']}")
+
         else:
             logger.debug(f"[{bot['username']}] Пропустил (p={prob:.2f})")
         
-       
-            
-            
+"""
+#  profile
+@receiver(post_save, sender=settings.AUTH_USER_MODEL)
+def manage_user_profile(sender, instance, created, **kwargs):
+    if created:
+        Profile.objects.create(user=instance)
+    else:
+        if hasattr(instance, 'profile'):
+            instance.profile.save()
+"""

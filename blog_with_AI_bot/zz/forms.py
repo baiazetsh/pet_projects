@@ -1,7 +1,16 @@
 from dataclasses import fields
 from django import forms
-from .models import Comment, Topic, Chapter, Post
+
 from django.utils.translation import gettext_lazy as _
+from django.template import Template
+from django.template.exceptions import TemplateSyntaxError
+from django.conf import settings
+
+from zz.utils.bots import BOTS, BOT_USERNAMES
+from .models import Comment, Topic, Chapter, Post, Prompt, GeneratedItem
+
+
+
 
 class TopicForm(forms.ModelForm):
     class Meta:
@@ -140,3 +149,74 @@ class CommentForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         
         super().__init__(*args, **kwargs)
+
+
+class PromptForm(forms.ModelForm): 
+    class Meta:
+        model = Prompt
+        fields = [
+            "title",
+            "template",
+            "model_name",
+            "tags",
+            "status",
+        ]
+        widgets = {
+            "template": forms.Textarea(attrs={
+                "rows": 6,
+                "placeholder": "Enter the template with variables, for example: {{ topic }} - is very important"
+            }),
+            "tags": forms.TextInput(attrs={
+                "placeholder": "summary, comment, post"
+            }),
+        }
+
+    def clean_template(self):
+        template_str = self.cleaned_data["template"]
+        try:
+            Template(template_str)
+        except TemplateSyntaxError as e:
+            raise ValidationError(f"Invalid template syntax: {e}")
+        return template_str
+
+
+
+
+class ShitgenForm(forms.Form):
+    topic_theme = forms.CharField(
+        label="Topic theme",
+        max_length=200,
+        widget=forms.TextInput(attrs={"class": "form-control"}),
+        required=True,
+    )
+
+    chapters = forms.IntegerField(
+        label="Number of chapters",
+        min_value=1,
+        max_value=20,
+        initial=1,
+        widget=forms.NumberInput(attrs={"class": "form-control"}),
+    )
+
+    posts = forms.IntegerField(
+        label="Posts per chapter",
+        min_value=1,
+        max_value=10,
+        initial=1,
+        widget=forms.NumberInput(attrs={"class": "form-control"}),
+    )
+
+    comments = forms.IntegerField(
+        label="Comments per post",
+        min_value=0,
+        max_value=10,
+        initial=1,
+        widget=forms.NumberInput(attrs={"class": "form-control"}),
+    )
+
+    bot = forms.ChoiceField(
+        label="Bot character",
+        choices=[(b["username"], b["display_name"]) for b in BOTS],
+        widget=forms.Select(attrs={"class": "form-select"}),
+        initial=BOTS[0]["username"],  # по умолчанию берём первого бота из списка
+    )

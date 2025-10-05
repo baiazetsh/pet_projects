@@ -1,40 +1,90 @@
 # zz/views
-from urllib import request
-from django.db.models.fields import json
-from django.db.models.query import QuerySet
+
 from django.forms import BaseModelForm
 from django.http import HttpResponse, JsonResponse
 from django.urls import reverse_lazy
-from django.views.generic import UpdateView, CreateView, ListView, DetailView
-from django.contrib.auth.mixins import LoginRequiredMixin
-from django.shortcuts import render, redirect, get_object_or_404
-from .forms import CommentForm, TopicForm, ChapterForm, PostForm
-from .models import Post, Topic, Chapter, Comment
+from django.views.generic import(
+    UpdateView,
+    CreateView,
+    ListView,
+    DetailView,
+    FormView
+)
+import json
+from celery.result import AsyncResult
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 from django.contrib import messages
 from django.utils.translation import gettext_lazy as _
 from django.core.paginator import Paginator
 from django.core.exceptions import PermissionDenied
 from django.views import View
+from django.template.exceptions import TemplateSyntaxError
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.shortcuts import render, redirect, get_object_or_404
+from icecream import ic
+from django.core.management import call_command
+from django.db.models import Count
+
+def get_context_data(self, **kwargs):
+    context = super().get_context_data(**kwargs)
+
+    topics_with_chapters = (
+        Topic.objects.filter(
+            owner=self.request.user,
+            pk__in=[topic.pk for topic in context['topics']]
+        )
+        .prefetch_related('chapters')
+        .annotate(total_posts=Count('chapters__posts'))  
+    )
+
+    context['topic_with_chapters'] = topics_with_chapters
+    return context
+
+
+
+from .forms import(
+CommentForm,
+TopicForm,
+ChapterForm,
+PostForm,
+ShitgenForm,
+)
+from .models import(Post,
+Topic,
+Chapter,
+Comment,
+Prompt,
+GeneratedItem,
+ChatMessage
+)
 from django.conf import settings
 from zz.tasks import summarize_post
 from zz.signals import call_ubludok
-from celery.result import AsyncResult
-from asgiref.sync import async_to_sync
-from channels.layers import get_channel_layer
 from zz.utils import notify_new_comment
-import json
+from django.template import Template, Context
+from zz.utils.ollama_client import generate_text, clean_response
+from zz.utils.task_runner import run_task
+from zz.utils.bots import BOTS
+
+import logging
+logger = logging.getLogger(__name__)
+
 
 #обработка кнопки " позвать ублюдка"
 def summon_ubludok(request, pk):
-    if request.method == "POST":             
+    if request.method == "POST" and request.headers.get("x-requested-with") == "XMLHttpRequest":             
         post = get_object_or_404(Post, pk=pk)  
               
         call_ubludok.send(sender=None, user=request.user, post=post)
         
-        return JsonResponse({
+        response = JsonResponse({
             "success": True,
             "message": f"The bastard is calledfor post:{post.id}"
-            })
+        })
+        response["Content-Type"] = "application/json"
+        return response
+
     return JsonResponse({
         "success": False,
         "message": "wrong method"},
@@ -85,10 +135,16 @@ class TopicListView(LoginRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
           # Предзагружаем главы для каждой темы
-        topics_with_chapters = Topic.objects.filter(
-            owner=self.request.user,
-            pk__in=[topic.pk for topic in context['topics']]
-        ).prefetch_related('chapters')
+        topics_with_chapters = (
+            Topic.objects.filter(
+                owner=self.request.user,
+                pk__in=[topic.pk for topic in context['topics']]
+            )
+            .prefetch_related('chapters__posts')
+            .annotate(total_posts=Count('chapters__posts'))
+        )
+        
+        
         context['topic_with_chapters'] = topics_with_chapters
         return context
 
@@ -263,17 +319,6 @@ class ChapterDeleteView(LoginRequiredMixin, View):
         messages.success(request, "Chapter deleted")
         return redirect("zz:topic_detail", pk=topic_pk)
     
-# zz/views.py
-from django.views.generic import DetailView
-from django.shortcuts import get_object_or_404
-from django.http import JsonResponse
-from django.contrib.auth.mixins import LoginRequiredMixin
-from django.utils.translation import gettext_lazy as _
-from django.contrib import messages
-
-from .models import Post, Comment
-from .forms import CommentForm
-from zz.utils import notify_new_comment
 
 
 class PostDetailView(LoginRequiredMixin, DetailView):
@@ -308,7 +353,7 @@ class PostDetailView(LoginRequiredMixin, DetailView):
         comment.author = request.user
         parent_id = request.POST.get("parent_id")
         if parent_id:
-            comment.parent = Comment.objects.filter(id=parent_id).first()
+            comment.parent = Comment.objects.filter(id=parent_id, post=self.object).first()
         comment.save()
 
         # пушим всем по WebSocket
@@ -326,165 +371,6 @@ class PostDetailView(LoginRequiredMixin, DetailView):
         })
     
 
-"""
-class PostDetailView(DetailView):
-    model = Post
-    template_name = 'zz/post_detail.html'
-    context_object_name = 'post'
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['comments'] = Comment.objects.filter(
-            post=self.object
-        ).select_related('author').order_by('-created_at')
-        context['form'] = CommentForm()
-        context['chapter'] = getattr(self.object, 'chapter', None)
-        return context
-
-    def post(self, request, *args, **kwargs):
-        #Создание комментария — всегда JSON
-        self.object = self.get_object()
-        form = CommentForm(request.POST)
-
-        if form.is_valid():
-            comment = form.save(commit=False)
-            comment.post = self.object
-            comment.author = request.user
-            comment.save()
-
-            # пушим в WebSocket
-            notify_new_comment(comment)
-
-            return JsonResponse({
-                'success': True,
-                'comment': {
-                    'id': comment.id,
-                    'author': comment.author.username,
-                    'content': comment.content,
-                    'created_at': comment.created_at.isoformat(),
-                }
-            })
-
-        return JsonResponse({
-            'success': False,
-            'errors': form.errors
-        }, status=400)
-    
-
-  
-class PostDetailView(LoginRequiredMixin, DetailView):
-    model = Post
-    template_name = 'zz/post_detail.html'
-    context_object_name = 'post'
-    
-    def get_queryset(self):
-        return Post.objects.order_by('-created_at')
-    
-    def post(self, request, *args, **kwargs):
-        post = self.get_object()
-        form = CommentForm(request.POST)
-        
-        if form.is_valid():
-            comment = form.save(commit=False)
-            comment.post = post
-            comment.author = request.user
-            parent_id = request.POST.get("parent_id")
-            if parent_id:
-                comment.parent = Comment.objects.filter(id=parent_id).first()
-            
-            comment.save()
-            
-            # 🔥 уведомляем WebSocket-группу
-            from zz.utils import notify_new_comment
-            notify_new_comment(comment)
-            
-            return JsonResponse({
-                "success": True,
-                "comment": {
-                    "id": comment.id,
-                    "author": comment.author.username,
-                    "content": comment.content,
-                    "created_at": comment.created_at.isoformat(),
-                }
-            })
-        
-        return JsonResponse({"success": False, "errors": form.errors}, status=400)
-            
-    
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-         # self.object уже есть, это текущий Post
-        context["chapter"] = self.object.chapter
-        context["topic"] = self.object.chapter.topic
-        context["comments"] = self.object.comments.filter(parent__isnull=True).order_by("-created_at")
-        context["form"] = CommentForm()
-        
-        return context
-
-# В zz/views.py найдите и замените PostDetailView на эту версию:
-
-class PostDetailView(DetailView):
-    model = Post
-    template_name = 'zz/post_detail.html'
-    context_object_name = 'post'
-    
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['comments'] = Comment.objects.filter(
-            post=self.object
-        ).select_related('author').order_by('created_at')
-        context['form'] = CommentForm()
-        
-        # Получаем chapter для отображения в шаблоне
-        try:
-            context['chapter'] = self.object.chapter
-        except AttributeError:
-            context['chapter'] = None
-            
-        return context
-    
-    def post(self, request, *args, **kwargs):
-        #Обработка POST запросов (создание комментариев)
-        self.object = self.get_object()
-        form = CommentForm(request.POST)
-        
-        if form.is_valid():
-            comment = form.save(commit=False)
-            comment.post = self.object
-            comment.author = request.user
-            comment.save()
-            
-            # Отправляем WebSocket уведомление
-            notify_new_comment(comment)
-            
-            # Проверяем, AJAX ли это запрос
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return JsonResponse({
-                    'success': True,
-                    'comment': {
-                        'id': comment.id,
-                        'author': comment.author.username,
-                        'content': comment.content,
-                        'created_at': comment.created_at.isoformat(),
-                    }
-                })
-            else:
-                # Обычный POST запрос - редирект
-                messages.success(request, _('Comment added successfully!'))
-                return redirect('zz:post_detail', pk=self.object.pk)
-        else:
-            # Форма невалидна
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return JsonResponse({
-                    'success': False,
-                    'errors': form.errors
-                }, status=400)
-            else:
-                # Показываем форму с ошибками
-                context = self.get_context_data()
-                context['form'] = form
-                return self.render_to_response(context)
-"""
 class PostUpdateView(LoginRequiredMixin, UpdateView):
     model = Post
     form_class = PostForm
@@ -527,3 +413,106 @@ class PostDeleteView(LoginRequiredMixin, View):
         post.delete()
         messages.success(request, "Post deleted")
         return redirect("zz:chapter_detail", pk=chapter_pk)
+
+
+
+
+# for ShitgenView
+def run_shitgen_sync(
+    topic_theme,
+    chapters=1,
+    posts=1,
+    comments=1,
+    bot="NeuroUbludok"
+    ):
+    """Синхронный запуск shitgen через call_command (для threading fallback)."""
+    call_command(
+        "shitgen",
+        topic_theme,
+        chapters=chapters,
+        posts=posts,
+        comments=comments,
+        bot=bot,
+    )
+
+class ShitgenView(View):
+    def get(self, request):
+        """Form render"""
+        return render(request, "zz/shitgen_form.html", {"form": ShitgenForm()})
+
+    def post(self, request):
+        """ Frorm processing"""
+        form = ShitgenForm(request.POST)
+
+        if not form.is_valid():
+            return render(request, "zz/shitgen_form.html", {"form": form})
+
+        # Явное извлечение данных
+        topic_theme = form.cleaned_data["topic_theme"]
+        chapters = form.cleaned_data["chapters"]
+        posts = form.cleaned_data["posts"]
+        comments = form.cleaned_data["comments"]
+        bot = form.cleaned_data["bot"]
+
+        try:
+            run_task(
+                run_shitgen_sync,
+                topic_theme=topic_theme,
+                chapters=chapters,
+                posts=posts,
+                comments=comments,
+                bot=bot,
+                use_celery_name="generate_shitgen_task",
+            )
+            messages.success(request, f"Topic '{topic_theme}' generated successfully!")
+            return redirect("zz:index")
+
+        except Exception as e:
+            logger.exception(f"[ShitgenView] Ошибка запуска: {e}")
+            messages.error(request, "❌ Ошибка при запуске генерации")
+            return render(request, "shitgen_form.html", {"form": form})
+
+
+
+class ChatView(View):
+    template_name = "zz/chat.html"
+
+    def get(self, request):
+        user = request.user if request.user.is_authenticated else None
+        bot_name = request.GET.get('bot', 'neuroubludok')  # Get selected bot from URL
+
+        # Load chat history
+        if user:
+            # For authenticated users - load their messages
+            messages_qs = ChatMessage.objects.filter(
+                user=user,
+                bot_name=bot_name
+            ).order_by('-created_at')[:50]  # Last 100 messages
+            
+        else:
+            # For anonymous users - load messages with user=None
+            messages_qs = ChatMessage.objects.filter(
+                user__isnull=True,
+                bot_name=bot_name
+            ).order_by('created_at')[:50]
+        
+        messages = list(messages_qs)[::-1]
+        
+        # Debug info
+        logger.info(f"🔍 User: {user}, Bot: {bot_name}, Messages count: {messages_qs.count()}")
+        
+        return render(request, self.template_name, {
+            "bots": BOTS,
+            "history": list(messages),  # Convert to list for template
+            "current_bot": bot_name
+        })
+        
+
+
+class ChatClearAjaxView(LoginRequiredMixin, View):
+    def post(self, request, *args, **kwargs):
+        qs = ChatMessage.objects.filter(user=request.user)
+        deleted, _ = qs.delete()
+        logger.info(f"Clear all chats: deleted: {deleted} msgs (user={request.user})")
+        return JsonResponse({"success": True, "deleted": deleted})
+

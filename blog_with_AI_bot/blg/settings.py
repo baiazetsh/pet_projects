@@ -21,9 +21,12 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+
+    'rest_framework',
     'channels',
     'django_celery_results',
     'zz.apps.ZzConfig',
+    'users.apps.UsersConfig',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -121,6 +124,11 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_DIRS = [ BASE_DIR / "static" ]
+
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -147,11 +155,10 @@ LOGGING = {
     },
 }
 # settings.py
-OLLAMA_MODEL4b = "qwen3:4b"
-OLLAMA_MODEL8b = "qwen3:8b"
-OLLAMA_MODEL = "gemma3:1b"
-OLLAMA_URL = "http://ollama:11434" #for Docker
-#OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434") # for local work
+
+LLM_MODEL = "gemma3:1b"
+LLM_URL = "http://ollama:11434" #for Docker
+#LLM_URL = os.getenv("LLM_URL", "http://localhost:11434") # for local work
 
 CELERY_BROKER_URL = "redis://127.0.0.1:6379/0"
 #CELERY_RESULT_BACKEND = "redis://127.0.0.1:6379/0"

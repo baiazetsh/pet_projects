@@ -1,94 +1,105 @@
-const summarizeBtn = document.getElementById("summarize-btn");
-const summaryBox = document.getElementById("summary-box");
+{# templates/zz/_comment.html #}
+{% load i18n %}
+{% load static %}
 
-summarizeBtn?.addEventListener("click", () => {
-  console.log("🔥 summarize clicked");
-  socket.send(JSON.stringify({
-    type: "summarize",
-    post_id: "{{ post.pk }}"
-  }));
-});
+<li id="comment-{{ comment.id }}" class="transition-all duration-500 ease-in-out animate-fade-in mb-3">
+  <div class="d-flex align-items-center mb-1">
+    <!-- 🔥 аватар + имя автора -->
+    <img src="{{ comment.author.profile.avatar_url }}"
+         class="rounded-circle me-2 avatar-click avatar-img"
+         alt="avatar"
+         width="32" height="32"
+         data-profile-id="{{ comment.author.profile.pk }}"
+         onerror="this.src='{% static 'images/default-avatar.png' %}'">
+    <div>
+      <strong>{{ comment.author.profile.display_name }}</strong>
+      <small class="text-muted ms-2">{{ comment.created_at|date:"SHORT_DATETIME_FORMAT" }}</small>
+    </div>
+  </div>
+
+  {% if comment.parent %}
+    <div class="text-muted mb-1">
+      <small><em>
+        {{ comment.parent.author.profile.display_name }}:  
+        {{ comment.parent.content|truncatechars:50 }}
+      </em></small>
+    </div>
+  {% elif comment.parent_id %}
+    <div class="text-muted mb-1">
+      <small><em>{% trans "Quote was deleted" %}</em></small>
+    </div>
+  {% endif %}
+
+  <p>{{ comment.content }}</p>
+
+  <!-- Reply form -->
+  <form method="post" class="reply-form mt-2">
+    {% csrf_token %}
+    <input type="hidden" name="parent_id" value="{{ comment.id }}">
+    <textarea name="content"
+              class="form-control mb-2"
+              rows="2"
+              placeholder="{% trans 'Reply...' %}"></textarea>
+    <button type="submit" class="btn btn-primary btn-sm">
+      {% trans "Reply" %}
+    </button>
+  </form>
+
+  <!-- Nested replies -->
+  {% if comment.replies.exists %}
+    <ul class="list-unstyled ms-4 mt-3">
+      {% for reply in comment.replies.all %}
+        {% include "zz/_comment.html" with comment=reply %}
+      {% endfor %}
+    </ul>
+  {% endif %}
+</li>
+// ----- WebSocket -----
+const postId = "{{ post.pk }}";
+const socket = new WebSocket(
+  (window.location.protocol === "https:" ? "wss://" : "ws://")
+  + window.location.host
+  + "/ws/posts/" + postId + "/"
+);
+
+socket.onopen = () => console.log("✅ WS connected");
+socket.onerror = (err) => console.error("❌ WS error", err);
+socket.onclose = (e) => console.warn("⚠️ WS closed", e);
 
 socket.onmessage = (e) => {
-  console.log("📩 from WS:", e.data);
   const data = JSON.parse(e.data);
+  console.log("⚡ Новый комментарий:", data);
 
-  if (data.type === "summary") {
-    summaryBox.textContent = data.summary;
-  }
+  // 🟩 если уже есть — не дублируем
+  if (document.querySelector(`[data-comment-id="${data.id}"]`)) return;
 
-  if (data.type === "summarize_started") {
-    summaryBox.textContent = "⏳ Started summarizing...";
-  }
+  // 🟩 аватар или fallback
+  const avatar = data.author_profile?.avatar
+    ? data.author_profile.avatar
+    : "{% static 'images/default-avatar.png' %}";
+
+  const username = data.author_username || "Unknown";
+  const quote = data.author_profile?.quote || "";
+  const createdAt = new Date(data.created_at).toLocaleString();
+  const content = data.content;
+
+  // 🟩 формируем HTML блока комментария
+  const html = `
+    <li class="comment small mb-2 d-flex align-items-center" data-comment-id="${data.id}">
+      <img src="${avatar}"
+           class="rounded-circle me-2 avatar-click avatar-img"
+           alt="avatar"
+           width="32" height="32"
+           onerror="this.src='{% static 'images/default-avatar.png' %}'">
+      <div>
+        <strong>${username}</strong>
+        <span class="text-muted small ms-2">${createdAt}</span><br>
+        <span class="text-body">${content}</span>
+        ${quote ? `<div class="text-muted fst-italic mt-1">"${quote}"</div>` : ""}
+      </div>
+    </li>
+  `;
+
+  // 🟩 добавляем в начало списка
+  commentsList.insertAdjacentHTML("afterbegin", html);
 };
-
-
-
-
-
-
-var 2 summarize
-<script>
-const summarizeBtn = document.getElementById("summarize-btn");
-const summaryBox = document.getElementById("summary-box");
-
-if (summarizeBtn) {
-  summarizeBtn.addEventListener("click", async () => {
-    summarizeBtn.disabled = true;
-    summarizeBtn.textContent = "⏳ Summarizing...";
-    summaryBox.textContent = "";
-
-    try {
-      const res = await fetch("{% url 'zz:post_summarize' post.pk %}", {
-        method: "POST",
-        headers: {
-          "X-CSRFToken": CSRF,
-          "X-Requested-With": "XMLHttpRequest",
-        },
-      });
-
-      const data = await res.json();
-      if (!data.task_id) {
-        summaryBox.textContent = "❌ Ошибка: задача не запущена.";
-        return;
-      }
-
-      const taskId = data.task_id;
-      let attempts = 0;
-      const maxAttempts = 20;
-
-      async function pollStatus() {
-        const statusRes = await fetch(`{% url 'zz:post_summarize' post.pk %}?task_id=${taskId}`);
-        const statusData = await statusRes.json();
-
-        if (statusData.status === "done") {
-          summaryBox.textContent = statusData.summary;
-          summarizeBtn.disabled = false;
-          summarizeBtn.textContent = "Summarize";
-        } else if (statusData.status === "error") {
-          summaryBox.textContent = "❌ Ошибка: " + statusData.message;
-          summarizeBtn.disabled = false;
-          summarizeBtn.textContent = "Summarize";
-        } else {
-          attempts++;
-          if (attempts >= maxAttempts) {
-            summaryBox.textContent = "⚠️ Превышено время ожидания.";
-            summarizeBtn.disabled = false;
-            summarizeBtn.textContent = "Summarize";
-          } else {
-            setTimeout(pollStatus, 1500);
-          }
-        }
-      }
-
-      pollStatus();
-
-    } catch (err) {
-      console.error("Summarize error:", err);
-      summaryBox.textContent = "🚨 Ошибка сети или сервера.";
-      summarizeBtn.disabled = false;
-      summarizeBtn.textContent = "Summarize";
-    }
-  });
-}
-</script>

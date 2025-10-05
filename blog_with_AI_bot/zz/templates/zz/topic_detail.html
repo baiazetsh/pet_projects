@@ -1,9 +1,10 @@
 <!--topic_detail-->
 {% extends 'zz/base.html' %}
 {% load i18n %}
+{% load static %} <!-- 🔥  для static тегов -->
 
 {% block content %}
-<h1>{{ topic.name }}</h1>
+<h3>{{ topic.name }}</h3>
 {% if topic.pk %}
     <a href="{% url 'zz:topic_update' topic.pk %}" class="btn btn-secondary">Edit</a>
             
@@ -16,22 +17,150 @@
 {% endif %}
 
 {% for chapter in chapters %}
-    <div class="chapter">
-        <h2><a href="{{ chapter.get_absolute_url }}">{{ chapter.title }}</a></h2>
-        <p>{{ chapter.description }}</p>
-        
-        <div class="posts">
+    <div class="chapter mb-4 p-3 border rounded bg-light">
+        <h4><a href="{{ chapter.get_absolute_url }}">{{ chapter.title }}</a></h4>
+        {% if chapter.description %}
+            <p class="text-muted">{{ chapter.description }}</p>
+        {% endif %}
+
+        <!-- Posts within the chapter -->                
+        <div class="posts ms-3">
             {% for post in chapter.posts.all %}
-                <div class="post-preview">
-                    <h3><a href="{{ post.get_absolute_url }}">{{ post.title }}</a></h3>
+                <div class="post-preview mb-4 p-3 border rounded bg-white">
+                    
+                    <div class="d-flex align-items-center mb-2">
+
+                        <!-- 🔥 проверка на существование аватарки -->
+                        <img src="{{ post.author.profile.avatar_url }}"
+                          class="rounded-circle me-2 avatar-click avatar-img"
+                          alt="avatar"                          
+                          data-profile-id="{{ post.author.profile.pk }}">
+
+
+                        <!-- 🔥 КОНЕЦ ИЗМЕНЕНИЙ -->
+                        <strong>{{ post.author.profile.display_name }}</strong>
+                        <span class="text-muted small ms-2">{{ post.created_at|date:"d M Y H:i" }}</span>
+                    </div>
+
+                    <h5><a href="{{ post.get_absolute_url }}">{{ post.title }}</a></h5>
+                    <p>{{ post.content|truncatechars:300 }}</p>
+
+                    <!-- Comments (first 3) -->
+                    <div class="comments ms-3">
+                        <h6 class="text-muted">Comments:</h6>
+                        {% for comment in post.comments.all|slice:":5" %}
+                          <div class="comment small mb-2 d-flex align-items-center">
+                            <!-- 🔥 проверка на существование аватарки комментария -->
+
+                            
+                                <img src="{{ comment.author.profile.avatar_url }}"
+                                    class="rounded-circle me-2 avatar-click avatar-img"
+                                    alt="avatar"                                    
+                                    data-profile-id="{{ comment.author.profile.pk }}">
+                           
+                            <!-- 🔥 КОНЕЦ ИЗМЕНЕНИЙ -->
+                            <div>
+                              <strong>{{ comment.author.profile.display_name }}</strong>:
+                              <span class="text-muted">{{ comment.content|truncatechars:150 }}</span>
+                            </div>
+                          </div>
+                        {% empty %}
+                          <div class="text-muted fst-italic">No comments</div>
+                        {% endfor %} 
+                    </div>
+
+                    {% if post.comments.all|length > 5 %}
+                      <div class="small mt-1">
+                        <a href="{{ post.get_absolute_url }}">All comments -></a>
+                      </div>
+                    {% endif %}
+
+                    <div class="mt-2">
+                        <a href="{{ post.get_absolute_url }}" class="btn btn-sm btn-outline-primary">
+                            Read full post
+                        </a>
+                    </div>
                 </div>
+            {% empty %}
+                <p class="text-muted fst-italic">No posts yet</p> 
             {% endfor %}
         </div>
             
     </div>
+{% empty %}
+    <p class="text-muted fst-italic">No chapters yet</p>
 {% endfor %}
 
 <a href="{% url 'zz:chapter_create' topic.id %}" class="btn btn-success">
-        {% trans "Create new chapter" %}
+    {% trans "Create new chapter" %}
 </a>
+
+<!-- 🔥 Модалка профиля -->
+<div class="modal fade" id="profileModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Profile</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-center">
+        <img id="profile-avatar" src="" alt="avatar" class="rounded mb-3" width="200" 
+             onerror="this.src='{% static 'images/default-avatar.png' %}'"> <!-- 🔥fallback в модалке -->
+        <h4 id="profile-name"></h4>
+        <p id="profile-quote" class="fst-italic text-muted"></p> 
+        <p id="profile-bio"></p>
+        <p id="profile-bot"></p>
+      </div>
+
+      <div class="modal-footer">
+        <a id="profile-full-link" href="#" class="btn btn-outline-primary">Открыть полный профиль</a>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- 🔥 JS -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const modal = new bootstrap.Modal(document.getElementById("profileModal"));
+  const avatarElems = document.querySelectorAll(".avatar-click");
+
+  avatarElems.forEach(avatar => {
+    avatar.style.cursor = "pointer"; 
+    
+    avatar.addEventListener("click", () => {
+      const profileId = avatar.dataset.profileId;
+      console.log("🔍 Loading profile:", profileId); 
+
+      fetch(`/users/api/profiles/${profileId}/`)
+        .then(res => {
+          
+          if (!res.ok) {
+            throw new Error(`HTTP error! status: ${res.status}`);
+          }
+          return res.json();
+        })
+        .then(data => {
+          console.log("✅ Profile data:", data);
+          document.getElementById("profile-full-link").href = "/users/profile/" + data.id + "/";
+
+          document.getElementById("profile-avatar").src = data.avatar_url || '{% static "images/default-avatar.png" %}'; // 🔥 ДОБАВЛЕНО: fallback
+          document.getElementById("profile-name").textContent = data.display_name || "Unknown";
+          document.getElementById("profile-quote").textContent = data.quote || "";
+          document.getElementById("profile-bio").textContent = data.bio || "";
+          document.getElementById("profile-bot").textContent = data.is_bot ? "🤖 Bot" : "👤 User";
+          modal.show();
+        })
+        .catch(err => {
+          console.error("❌ Profile load error:", err); 
+          alert("Failed to load profile. Check console for details."); 
+        });
+    });
+  });
+});
+</script>
+
+
+
 {% endblock content %}

@@ -14,11 +14,17 @@ services:
   web:
     build: .
     container_name: django-web
-    command: daphne -b 0.0.0.0 -p 8000 blg.asgi:application
+    command: >
+     sh -c "python manage.py collectstatic --noinput &&
+            python manage.py initbots &&
+            daphne -b 0.0.0.0 -p 8000 blg.asgi:application"
+
     ports:
       - "8000:8000"
     volumes:
       - .:/app
+      - ./staticfiles:/app/staticfiles
+      - ./media:/app/media
     environment:
       - DJANGO_SETTINGS_MODULE=blg.settings
       - CELERY_BROKER_URL=redis://redis:6379/0
@@ -31,7 +37,7 @@ services:
   celery:
     build: .
     container_name: django-celery
-    command: celery -A blg worker -l info 
+    command: celery -A blg worker -l info -c 4
     volumes:
       - .:/app
     environment:

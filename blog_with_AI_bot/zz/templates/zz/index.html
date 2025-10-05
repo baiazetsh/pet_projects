@@ -1,79 +1,152 @@
-{% extends 'zz/base.html' %}
-{% load i18n %}
-
+{# index.html #}
+{% extends "zz/base.html" %}
 {% block content %}
+{% load static %} 
+
 <div class="container mt-4">
+  <h1 class="mb-4">📚 All topics</h1>
 
-    <h2>{% trans "All topics" %}</h2>
+  <div class="list-group">
+    {% for topic in topics %}
+      <div class="list-group-item flex-column align-items-start mb-2 shadow-sm rounded">
+        <div class="d-flex w-100 justify-content-between align-items-center">
+          <h5 class="mb-1">{{ topic.name }}</h5>
+          <small class="text-muted">{{ topic.created_at|date:"M d, Y" }}</small>
+        </div>
 
-    {% if topics %}
-        <ul class="list-group mb-3">
-            {% for topic in topics %}
-                <li class="list-group-item d-flex justify-content-between align-items-center">
-                    <span>{{ topic.name }}</span>
-                    <small>Created: {{ topic.created_at|date:"M d, Y" }}</small>
-                    {% if topic.chapters.all %}
-                        <div class="chapters-list">
-                            <h3>Chapters</h3>
-                            <ul>
-                                {% for chapter in topic.chapters.all|dictsort:"order" %}
-                                    <li>
-                                        <strong>{{ chapter.title }}</strong>
-                                        {% if chapter.description %}
-                                          <p class="chapter-description">{{ chapter.description|truncatewords:15 }}</p>
-                                        {% endif %}
-                                        <!-- Показываем количество постов в главе -->
-                                        {% with chapter.posts.count as post_count %}
-                                            {% if post_count > 0 %}
-                                                <span class="post-count">({{ post_count }} posts)</span>
-                                            {% endif %}
-                                        {% endwith %}
-                                    </li>
-                                {% endfor %}
-                            </ul>
-                        </div>
-                    {% else %}
-                        <p class="no-chapters">No chapters</p>
-                    {% endif %}
+         <!-- 🔥 заменили username на аватар + имя -->
+        <div class="d-flex align-items-center mb-2">
+          <img src="{{ topic.owner.profile.avatar_url }}"
+               class="rounded-circle me-2 avatar-click avatar-img"
+               alt="avatar"
+               width="32" height="32"
+               data-profile-id="{{ topic.owner.profile.pk }}"
+               onerror="this.src='{% static 'images/default-avatar.png' %}'">
+          <p class="mb-0 text-muted">
+            by <strong>{{ topic.owner.profile.display_name }}</strong>
+          </p>
+        </div>
+        <!-- 🔥 конец блока аватара -->
 
-                    <div class="topic-actions">
-                        <a href="{% url 'zz:topic_detail' topic.pk %}" class="btn btn-primary">View Topic</a>
-                        
-                    </div>
+        
+        <!-- Кнопка для раскрытия -->
+        <button class="btn btn-sm btn-outline-primary mb-2 d-flex align-items-center"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#chapters-{{ topic.pk }}"
+                aria-expanded="false"
+                aria-controls="chapters-{{ topic.pk }}">
+          <span class="me-1">📘 {{ topic.chapters.count }} chapters</span>
+          <i class="bi bi-chevron-down collapse-icon"></i>
+        </button>
 
-                    
-                </li>
+        <!-- Список глав (accordion-style) -->
+        <div class="collapse" id="chapters-{{ topic.pk }}">
+          <ul class="list-group list-group-flush mt-2">
+            {% for chapter in topic.chapters.all %}
+              <li class="list-group-item d-flex justify-content-between align-items-start">
+                <div>
+                  <strong>{{ chapter.title }}</strong><br>
+                  <small class="text-muted"> Description of  chapter: {{ chapter.description|truncatewords:15 }}</small>
+                </div>
+                <span class="badge bg-info ms-2">{{ chapter.posts.count }} posts</span>
+                
+              </li>
+            {% empty %}
+              <li class="list-group-item text-muted">No chapters yet</li>
             {% endfor %}
-        </ul>
-        <!-- Пагинация -->
-        {% if is_paginated %}
-          <nav aria-label="Page navigation">
-            <ul class="pagination">
+          </ul>
 
-                {% if page_obj.has_previous %}
-                <li class="page-item">
-                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}">
-                        {% trans "назад" %}
-                    </a>
-                </li>
-                {% endif %}
-                {% if page_obj.has_next %}
-                    <li class="page-item">
-                    <a class="page-link" href="?page={{ page_obj.next_page_number }}">
-                        {% trans "Вперед" %}
-                    </a>
-                    </li>
-                {% endif %}
-            </ul>
-        </nav>
-        {% endif %}
-    {% else %}
-        <p class="text-muted">{% trans "Нет тем" %}</p>
-    {% endif %}
+          <!-- 🔥 выводим общее количество постов по теме -->
+          <div class="mt-2 text-muted">
+            Total posts in topic: {{ topic.total_posts }}
+          </div>
 
-    <a href="{% url 'zz:topic_create' %}" class="btn btn-success">
-        {% trans "Создать новую тему" %}
-    </a>
+        </div>
 
+        <div class="mt-2">
+          <a href="{% url 'zz:topic_detail' topic.pk %}" class="btn btn-sm btn-success">
+            View Topic
+          </a>
+        </div>
+      </div>
+    {% empty %}
+      <p class="text-muted">No topics found.</p>
+    {% endfor %}
+  </div>
 </div>
+
+<style>
+/* Анимация стрелочки */
+.collapse-icon {
+  transition: transform 0.3s ease;
+}
+button[aria-expanded="true"] .collapse-icon {
+  transform: rotate(180deg);
+}
+</style>
+
+
+<!-- 🔥 модалка профиля (одна на всю страницу) -->
+<div class="modal fade" id="profileModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Profile</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-center">
+        <img id="profile-avatar" src="" alt="avatar" class="rounded mb-3" width="200"
+             onerror="this.src='{% static 'images/default-avatar.png' %}'">
+        <h4 id="profile-name"></h4>
+        <p id="profile-quote" class="fst-italic text-muted"></p>
+        <p id="profile-bio"></p>
+        <p id="profile-bot"></p>
+      </div>
+      <div class="modal-footer">
+        <a id="profile-full-link" href="#" class="btn btn-outline-primary">Открыть полный профиль</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 🔥 JS -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const modal = new bootstrap.Modal(document.getElementById("profileModal"));
+  const avatarElems = document.querySelectorAll(".avatar-click");
+
+  avatarElems.forEach(avatar => {
+    avatar.style.cursor = "pointer";
+
+    avatar.addEventListener("click", () => {
+      const profileId = avatar.dataset.profileId;
+
+      fetch(`/users/api/profiles/${profileId}/`)
+        .then(res => {
+          if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+          return res.json();
+        })
+        .then(data => {
+          document.getElementById("profile-full-link").href = "/users/profile/" + data.id + "/";
+          document.getElementById("profile-avatar").src = data.avatar_url || '{% static "images/default-avatar.png" %}';
+          document.getElementById("profile-name").textContent = data.display_name || "Unknown";
+          document.getElementById("profile-quote").textContent = data.quote || "";
+          document.getElementById("profile-bio").textContent = data.bio || "";
+          document.getElementById("profile-bot").textContent = data.is_bot ? "🤖 Bot" : "👤 User";
+          modal.show();
+        })
+        .catch(err => {
+          console.error("❌ Profile load error:", err);
+          alert("Failed to load profile.");
+        });
+    });
+  });
+});
+</script>
+
+
+
+
+
 {% endblock %}

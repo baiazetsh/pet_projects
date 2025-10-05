@@ -1,11 +1,14 @@
 from django.urls import reverse
 from django.db import models
-from django.contrib.auth.models import User
+
 from django.utils.translation import gettext_lazy as _
+from django.conf import settings
+from django.dispatch import receiver
+from django.db.models.signals import post_save
 
 class Topic(models.Model):
     owner = models.ForeignKey(
-        User,
+        settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name =  "topics",
         verbose_name="Author",
@@ -29,6 +32,8 @@ class Topic(models.Model):
     def get_absolute_url(self):
         return reverse('zz:topic_detail', kwargs={'pk': self.pk})
 
+
+
 class Chapter(models.Model):
     topic = models.ForeignKey(
         Topic,
@@ -45,6 +50,12 @@ class Chapter(models.Model):
         verbose_name=_("Order"),
         default=0,
         help_text=_("Use for sorting chapters"),
+    )
+    author = models.ForeignKey(
+    settings.AUTH_USER_MODEL,
+    on_delete=models.CASCADE,
+    related_name="authored_chapters",
+    verbose_name=_("Author"),
     )
 
     class Meta:
@@ -85,6 +96,13 @@ class Post(models.Model):
         help_text=_("Use for sort posts in chapter")
             )
     summary = models.TextField(blank=True, null=True)
+    author = models.ForeignKey(
+    settings.AUTH_USER_MODEL,
+    on_delete=models.CASCADE,
+    related_name="posts",
+    verbose_name=_("Author"),
+)
+
 
     class Meta:
         verbose_name = _("Post")
@@ -101,6 +119,7 @@ class Post(models.Model):
         return reverse('zz:post_detail', kwargs={'pk': self.pk})
 
 
+
 class Comment(models.Model):
     post = models.ForeignKey(
         Post,
@@ -109,14 +128,14 @@ class Comment(models.Model):
         verbose_name=_("Post"),
     )
     author = models.ForeignKey(
-        User,
+        settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="comments",
         verbose_name=_("Author"),
     )
     parent=models.ForeignKey(
         'self',
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         related_name="replies"                     ,
         null=True,
         blank=True,
@@ -153,5 +172,83 @@ class Comment(models.Model):
     def is_root(self):
         return self.parent is None
     
+
+class Prompt(models.Model):
+    title = models.CharField(max_length=250)
+    template = models.TextField(help_text=_("Template with variables, for exsample: {{ topic }}"))
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    is_active = models.BooleanField(default=True)
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete = models.CASCADE,
+        verbose_name = _("Author")
+        )
+    model_name = models.CharField(
+        max_length=30,
+        help_text=_("LLM model name"),
+        default=getattr(settings, "LLM_MODEL")
+        )
+    tags = models.CharField(max_length=200, blank=True, help_text="Thru comma: summary, comment, post")
+
+    #Statuses
+    STATUS_CHOICES = [
+        ("draft", "Черновик"),
+        ("ready", "Готово"),
+        ("used", "Использовано"),
+    ]
+    status = models.CharField(
+        max_length=10,
+        choices=STATUS_CHOICES,
+        default="draft"
+    )
+
+    def extract_variables(self):
+        import re
+        return re.findall(r"\{\{\s*(\w+)\s*\}\}", self.template)
+
+    def render_with(self, context: dict) -> str:
+        from django.template import Template, Context
+        return Template(self.template).render(Context(context))
+
+    def __str__(self):
+        return self.title
     
-    
+
+class GeneratedItem(models.Model):
+    prompt = models.ForeignKey(Prompt, on_delete=models.CASCADE)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="generated_items",
+        )
+    inputs = models.JSONField()  # значения переменных
+    result = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class ChatMessage(models.Model):
+    ROLE_CHOICES = [
+        ("user", "User"),
+        ("bot", "Bot"),
+    ]
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="chat_messages",
+        null=True, blank=True
+    )
+    bot_name = models.CharField(max_length=50, default="NeuroUbludok")
+    role = models.CharField(max_length=10, choices=ROLE_CHOICES)
+    content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return f"[{self.role}] {self.content[:50]}"
+
+
+

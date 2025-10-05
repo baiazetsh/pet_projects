@@ -1,0 +1,17 @@
+<!--users/profile_list-->
+{% extends "zz/base.html" %}
+
+{% block content %}
+<h1>Profiles</h1>
+<ul>
+  {% for profile in profiles %}
+    <li>
+      <a href="{% url 'users:profile_detail' profile.pk %}">
+        <img src="{{ profile.avatar_url }}" width="50" height="50" alt="avatar">
+        {{ profile.display_name }} {% if profile.is_bot %}🤖{% endif %}
+      </a>
+    </li>
+  {% endfor %}
+</ul>
+{% endblock %}
+

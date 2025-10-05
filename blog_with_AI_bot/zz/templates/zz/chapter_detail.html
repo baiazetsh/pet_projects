@@ -3,8 +3,9 @@
 {% load i18n %}
 
 {% block content %}
-<h3>Chapter detail</h3>
-<h1>{{ chapter.title }}</h1>
+<h4>Chapter detail</h4>
+<h4>{{ chapter.title }}</h4>
+
 {% if chapter.pk %}
     <a href="{% url 'zz:chapter_update' chapter.pk %}" class="btn btn-sm btn-outline-primary">
         Edit chapter
@@ -15,20 +16,42 @@
         <button type="submit" class="btn btn-sm btn-outline-danger">
             Delete chapter
         </button>
-    </form>
-     
-
+    </form>    
 {% endif %}
+
+<hr>
+
 <div class="posts">
     {% for post in posts %}
-        <div class="posts=preview">
+        <div class="posts-preview mb-4 p-3 border rounded bg-light">
             <h2><a href="{{ post.get_absolute_url }}">{{ post.title }}</a></h2>
-            <p>{{ post.content }}</p>
-            
+            <p>{{ post.content|truncatechars:400 }}</p>
+
+            <!--comments-->
+            <div class="comments ms-3">
+                <h6 class="text-muted">Comments:</h6>
+                {% for comment in post.comments.all|slice:":3" %}
+                    <div class="comment small text-muted mb-1">
+                        <strong>{{ comment.author }}</strong>: {{ comment.content|truncatechars:150 }}
+                    </div>
+                {% empty %}
+                    <div class="text-muted fst-italic">No comments yet</div>
+                {% endfor %}
+            </div>
+            {% if post.comments.all|length > 3 %}
+                <div class="small mt-1">
+                    <a href="{{ post.get_absolute_url }}">All comments -></a>
+                </div>
+            {% endif %}
+
+            <div class="mt-2">
+                <a href="{{ post.get_absolute_url }}" class="btn btn-sm btn-outline-primary">
+                    Read full post 
+                </a>
+            </div>                
         </div>
-        {% empty %}
-            <p>{% trans "No posts yet in this chapter" %}</p>
-            
+    {% empty %}
+        <p>{% trans "No posts yet in this chapter" %}</p>            
     {% endfor %}
 </div>
 

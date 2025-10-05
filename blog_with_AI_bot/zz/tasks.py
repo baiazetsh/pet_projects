@@ -37,7 +37,7 @@ def summarize_post(self, post_id: int) -> str:
         # Text generation with Ollama
         raw_text = generate_text(
             prompt=prompt,
-            model=settings.OLLAMA_MODEL
+            model=settings.LLM_MODEL
         )
 
         summary = clean_response(raw_text).strip()
@@ -83,9 +83,9 @@ def generate_bot_reply_task(comment_id, bot_profile):
         bot_user = ensure_bot_user(bot_profile)
         
         # Проверка наличия настройки модели
-        if not hasattr(settings, 'OLLAMA_MODEL') or not settings.OLLAMA_MODEL:
-            logger.error(f"[{username}] OLLAMA_MODEL не настроен в settings")
-            return {"error": "OLLAMA_MODEL not configured"}
+        if not hasattr(settings, 'LLM_MODEL') or not settings.LLM_MODEL:
+            logger.error(f"[{username}] LLM_MODEL не настроен в settings")
+            return {"error": "LLM_MODEL not configured"}
         
         # История последних 5 комментов
         recent_comments = Comment.objects.filter(post=instance.post).order_by("-created_at")[:5]
@@ -100,7 +100,7 @@ def generate_bot_reply_task(comment_id, bot_profile):
         try:
             client = get_ollama_client()
             response = client.chat(
-                model=settings.OLLAMA_MODEL,
+                model=settings.LLM_MODEL,
                 messages=[
                     {"role": "system", "content": bot_profile["style"]},
                     {"role": "user", "content": f"Вот обсуждение:\n{dialogue}\n\nДай ответ на последний коммент."}

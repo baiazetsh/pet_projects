@@ -1,0 +1,148 @@
+<!--chat.html-->
+{% extends "zz/base.html" %}
+{% load i18n %}
+
+{% block content %}
+
+
+<div class="container mt-4">
+  <h1>{% trans "Live Chat with Bot" %}</h1>
+
+  <!-- Chat window -->
+  <div id="chat-window" class="border rounded p-3 mb-3 bg-light"
+       style="height:400px; overflow-y:auto;">
+
+    {% if history %}
+      {% for msg in history %}
+        <div class="mb-2 {% if msg.role == 'bot' %}text-start{% else %}text-end{% endif %}">
+          <div class="d-inline-block p-2 rounded 
+                      {% if msg.role == 'bot' %}
+                        bg-white border
+                      {% else %}
+                        bg-primary text-white
+                      {% endif %}">
+            {{ msg.content }}
+          </div>
+        </div>
+      {% endfor %}
+    {% else %}
+      <div class="text-muted">{% trans "Start a conversation…" %}</div>
+    {% endif %}
+  </div>
+
+  <!-- Chat form -->
+  <form id="chat-form" class="d-flex gap-2">
+    {% csrf_token %}
+    <select id="bot-select" class="form-select" style="width:200px;">
+      {% for bot in bots %}
+        <option value="{{ bot.username }}">{{ bot.display_name }}</option>
+      {% endfor %}
+    </select>
+    <input id="chat-input" type="text" class="form-control"
+           placeholder="{% trans 'Type your message…' %}" required>
+    <button type="submit" class="btn btn-primary">{% trans "Send" %}</button>
+  </form>
+
+  <div class="mt-2">
+    <button id="clear-chat-btn" type = "button" class="btn btn-danger btn-sm">
+      {% trans "🗑️ Clear all chats" %}
+    </button>
+
+</div>
+
+
+
+<div id="chat-messages">
+  {% for msg in messages %}
+    <div class="chat-message">
+      <strong>{{ msg.role }}</strong>: {{ msg.content }}
+    </div>
+  {% endfor %}
+</div>
+
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const chatWindow = document.getElementById("chat-window");
+    const chatForm = document.getElementById("chat-form");
+    const chatInput = document.getElementById("chat-input");
+    const botSelect = document.getElementById("bot-select");
+
+    function addMessage(sender, text, isBot=false) {
+        const wrapper = document.createElement("div");
+        wrapper.className = "mb-2 " + (isBot ? "text-start" : "text-end");
+        const bubble = document.createElement("div");
+        bubble.className = "d-inline-block p-2 rounded " +
+                          (isBot ? "bg-white border" : "bg-primary text-white");
+        bubble.textContent = text;
+        wrapper.appendChild(bubble);
+        chatWindow.appendChild(wrapper);
+        chatWindow.scrollTop = chatWindow.scrollHeight;
+        return bubble;
+    }
+
+    function animateTyping(bubble, text) {
+        bubble.textContent = "";
+        let i = 0;
+        const interval = setInterval(() => {
+            bubble.textContent += text[i];
+            i++;
+            if (i >= text.length) clearInterval(interval);
+        }, 15);
+    }
+
+    const protocol = window.location.protocol === "https:" ? "wss://" : "ws://";
+    const socket = new WebSocket(protocol + window.location.host + "/ws/chat/");
+
+    socket.onmessage = function (e) {
+        const data = JSON.parse(e.data);
+        if (data.reply) {
+            const bubble = addMessage("bot", "", true);
+            animateTyping(bubble, data.reply);
+        }
+    };
+
+    chatForm.addEventListener("submit", function (e) {
+        e.preventDefault();
+        const message = chatInput.value.trim();
+        if (!message) return;
+
+        addMessage("me", message, false);
+        socket.send(JSON.stringify({
+            message: message,
+            bot: botSelect.value
+        }));
+        chatInput.value = "";
+    });
+});
+
+
+const CSRF = document.querySelector("[name=csrfmiddlewaretoken]").value;
+
+document.getElementById("clear-chat-btn").addEventListener("click", async () => {
+  if (!confirm("Удалить все сообщения?")) return;
+
+  try {
+    const res = await fetch("{% url 'zz:chat_clear' %}", {
+      method: "POST",
+      headers: {
+        "X-CSRFToken": CSRF,
+        "X-Requested-With": "XMLHttpRequest",
+      },
+    });
+
+    const data = await res.json();
+    if (data.success) {
+      document.getElementById("chat-messages").innerHTML = "";
+      alert(`✅ Чат очищен (${data.deleted} сообщений удалено)`);
+    } else {
+      alert("❌ Ошибка очистки");
+    }
+  } catch (err) {
+    console.error("Ошибка сети при очистке чата:", err);
+    alert("🚨 Ошибка сети");
+  }
+});
+
+</script>
+{% endblock %}

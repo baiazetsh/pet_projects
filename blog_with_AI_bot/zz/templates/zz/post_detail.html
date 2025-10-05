@@ -1,14 +1,30 @@
+{# post_detail.html #}
 {% extends 'zz/base.html' %}
 {% load i18n %}
+{% load static %} 
 
 {% block content %}
 <h3>Post detail</h3>
+<div class="post"></div>
+  <div class="d-flex align-items-center mb-2">
+      <!-- 🔥 добавлен блок аватара -->
+      <img src="{{ post.author.profile.avatar_url }}"
+          class="rounded-circle me-2 avatar-click avatar-img"
+          alt="avatar"
+          data-profile-id="{{ post.author.profile.pk }}">
+      <!-- 🔥 конец блока аватара -->
 
-<h1>{{ chapter.title }}</h1>
-<p>{{ chapter.description }}</p>
+      <strong>{{ post.author.profile.display_name }}</strong>
+      <span class="text-muted small ms-2">{{ post.created_at|date:"d M Y H:i" }}</span>
+  </div>
+
+  <h3>{{ chapter.title }}</h3>
+  <p>{{ chapter.description }}</p>
+
+</div>
 
 <div class="post">
-  <h1>{{ post.title }}</h1>
+  <h4>{{ post.title }}</h4>
   <p>{{ post.content }}</p>
   <p><small>{{ post.created_at }}</small></p>
 
@@ -53,16 +69,92 @@
 <h3>{% trans "Comments" %}</h3>
 <ul id="comments-list">
   {% for comment in comments %}
-    {% include "comments/_comment.html" with comment=comment %}
+    {% include "zz/_comment.html" with comment=comment %}
   {% empty %}
-    <li>{% trans "No comments yet" %}</li>
+   <li>{% trans "No comments yet" %}</li>
   {% endfor %}
 </ul>
 
+<!-- 🔥 модалка профиля (скопировано с topic_detail.html) -->
+<div class="modal fade" id="profileModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Profile</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-center">
+        <img id="profile-avatar" src="" alt="avatar" class="rounded mb-3" width="200"
+             onerror="this.src='{% static 'images/default-avatar.png' %}'"> <!-- 🔥 fallback -->
+        <h4 id="profile-name"></h4>
+        <p id="profile-quote" class="fst-italic text-muted"></p>
+        <p id="profile-bio"></p>
+        <p id="profile-bot"></p>
+      </div>
 
+      <div class="modal-footer">
+        <a id="profile-full-link" href="#" class="btn btn-outline-primary">Открыть полный профиль</a>
+      </div>
+    </div>
+  </div>
+</div>
 
 
 <script>
+
+<!-- 🔥 JS для модалки -->
+
+document.addEventListener("DOMContentLoaded", function() {
+  const modal = new bootstrap.Modal(document.getElementById("profileModal"));
+  const avatarElems = document.querySelectorAll(".avatar-click");
+
+  avatarElems.forEach(avatar => {
+    avatar.style.cursor = "pointer";
+
+    avatar.addEventListener("click", () => {
+      const profileId = avatar.dataset.profileId;
+
+      fetch(`/users/api/profiles/${profileId}/`)
+        .then(res => {
+          if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+          return res.json();
+        })
+        .then(data => {
+          document.getElementById("profile-full-link").href = "/users/profile/" + data.id + "/";
+          document.getElementById("profile-avatar").src = data.avatar_url || '{% static "images/default-avatar.png" %}';
+          document.getElementById("profile-name").textContent = data.display_name || "Unknown";
+          document.getElementById("profile-quote").textContent = data.quote || "";
+          document.getElementById("profile-bio").textContent = data.bio || "";
+          document.getElementById("profile-bot").textContent = data.is_bot ? "🤖 Bot" : "👤 User";
+          modal.show();
+        })
+        .catch(err => {
+          console.error("❌ Profile load error:", err);
+          alert("Failed to load profile.");
+        });
+    });
+  });
+});
+
+
+
+// assume 'commentHtml' is rendered _comment.html from backend
+function addComment(commentHtml) {
+  const commentList = document.getElementById("comment-list");
+  const temp = document.createElement("div");
+  temp.innerHTML = commentHtml.trim();
+
+  const newComment = temp.firstElementChild;
+  newComment.classList.add("bg-yellow-100", "dark:bg-yellow-900", "animate-pulse");
+
+  commentList.appendChild(newComment);
+
+  setTimeout(() => {
+    newComment.classList.remove("bg-yellow-100", "dark:bg-yellow-900", "animate-pulse");
+  }, 2000);
+}
+
+
 const CSRF = document.querySelector("[name=csrfmiddlewaretoken]").value;
 const commentsList = document.getElementById("comments-list");
 
@@ -129,7 +221,11 @@ const ubludokBtn = document.getElementById("ubludokBtn");
 const statusBox = document.getElementById("ubludok-status");
 
 if (ubludokBtn) {
-  ubludokBtn.addEventListener("click", async () => {
+  ubludokBtn.type = "button";
+
+  ubludokBtn.addEventListener("click", async (e) => {
+    e.preventDefault();
+    
     const url = ubludokBtn.dataset.url;
     statusBox.textContent = "⚡ Призываю нейроублюдка...";
 
@@ -223,48 +319,65 @@ if (summarizeBtn) {
 
 
 
+
 // ----- WebSocket -----
-window.socket = new WebSocket(
-  (window.location.protocol === "https:" ? "wss://" : "ws://")
-  + window.location.host
-  + "/ws/posts/{{ post.pk }}/"
-);
-
-window.socket.onopen = () => console.log("✅ WS connected");
-window.socket.onclose = (e) => console.warn("⚠️ WS closed", e);
-window.socket.onerror = (err) => console.error("❌ WS error", err);
-
-
 const postId = "{{ post.pk }}";
 const socket = new WebSocket(
-  (window.location.protocol === "https:" ? "wss://" : "ws://")
-  + window.location.host
-  + "/ws/posts/" + postId + "/"
+  (window.location.protocol === "https:" ? "wss://" : "ws://")
+  + window.location.host
+  + "/ws/posts/" + postId + "/"
 );
 
 socket.onopen = () => console.log("✅ WS connected");
+socket.onerror = (err) => console.error("❌ WS error", err);
+socket.onclose = (e) => console.warn("⚠️ WS closed", e);
 
+// 🔥 ЗАМЕНИТЕ ВЕСЬ СТАРЫЙ ОБРАБОТЧИК `socket.onmessage` НА ЭТОТ
 socket.onmessage = (e) => {
-  console.log("📩 got from WS:", e.data);
-  const data = JSON.parse(e.data);
-  console.log("⚡ Новый комментарий:", data);
+  const data = JSON.parse(e.data);
+  console.log("⚡ Получен новый комментарий:", data);
 
-  if (data.comment && data.comment.html) {
-    const commentId = `comment-${data.comment.id}`;
-    if (!document.getElementById(commentId)) {
-      commentsList.insertAdjacentHTML("afterbegin", data.comment.html);
-      const newForm = document.querySelector(`#${commentId} .reply-form`);
-      if (newForm) bindReplyForm(newForm);
+  // 1. Проверяем, нет ли уже такого комментария на странице
+  if (document.getElementById(`comment-${data.comment_id}`)) {
+    return;
+  }
+
+  const commentHtml = data.comment_html;
+  const parentId = data.parent_id;
+  const commentsList = document.getElementById("comments-list");
+
+  if (parentId) {
+    // ЭТО ОТВЕТ (REPLY)
+    const parentComment = document.getElementById(`comment-${parentId}`);
+    if (parentComment) {
+      // Ищем в родительском комментарии список для ответов <ul>
+      let repliesList = parentComment.querySelector("ul");
+      if (!repliesList) {
+        // Если это первый ответ, списка <ul> еще нет, создаем его
+        repliesList = document.createElement("ul");
+        repliesList.className = "list-unstyled ms-4 mt-3";
+        // Вставляем его после формы ответа родителя
+        parentComment.querySelector(".reply-form").insertAdjacentElement("afterend", repliesList);
+      }
+      // Добавляем HTML нового ответа в конец списка
+      repliesList.insertAdjacentHTML("beforeend", commentHtml);
+    }
+  } else {
+    // ЭТО КОММЕНТАРИЙ ВЕРХНЕГО УРОВНЯ
+    commentsList.insertAdjacentHTML("afterbegin", commentHtml);
+  }
+  
+  // 🔥 ВАЖНО: нужно "оживить" форму ответа в только что добавленном комментарии.
+  const newCommentElement = document.getElementById(`comment-${data.comment_id}`);
+  if (newCommentElement) {
+    const newReplyForm = newCommentElement.querySelector(".reply-form");
+    if (newReplyForm) {
+      bindReplyForm(newReplyForm); // Используем вашу существующую функцию
     }
   }
 };
 
-socket.onerror = (err) => console.error("WebSocket ошибка:", err);
-socket.onclose = (e) => console.warn("WebSocket закрыт:", e);
 </script>
-
-
-
 
 
 {% endblock %}

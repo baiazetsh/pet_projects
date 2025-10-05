@@ -1,0 +1,89 @@
+<!--shitgen_form.html-->
+{% extends "zz/base.html" %}
+{% load i18n %}
+
+{% block content %}
+<div class="container mt-4">
+  <h1>{% trans "Generate new topic" %}</h1>
+
+  <form id="shitgen-form" method="post" class="mb-4">
+    {% csrf_token %}
+    <div class="mb-3">
+      {{ form.topic_theme.label_tag }}
+      {{ form.topic_theme }}
+      {% if form.topic_theme.errors %}
+        <div class="text-danger">{{ form.topic_theme.errors }}</div>
+      {% endif %}
+    </div>
+    <div class="mb-3">
+      {{ form.chapters.label_tag }}
+      {{ form.chapters }}
+    </div>
+    <div class="mb-3">
+      {{ form.posts.label_tag }}
+      {{ form.posts }}
+    </div>
+    <div class="mb-3">
+      {{ form.comments.label_tag }}
+      {{ form.comments }}
+    </div>
+    <div class="mb-3">
+      {{ form.bot.label_tag }}
+      {{ form.bot }}
+    </div>
+    <button type="submit" class="btn btn-primary">{% trans "Generate" %}</button>
+  </form>
+
+  {% if messages %}
+    <ul class="list-unstyled">
+      {% for message in messages %}
+        <li class="alert alert-{{ message.tags }}">{{ message }}</li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+
+  <hr>
+  <h3>{% trans "Progress" %}</h3>
+  <div id="progress"
+       class="border rounded bg-light p-2"
+       style="height:250px; overflow-y:auto; font-family:monospace;">
+    <div class="text-muted">{% trans "Waiting for generation..." %}</div>
+  </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const progressBox = document.getElementById("progress");
+
+    function addLog(msg) {
+        const el = document.createElement("div");
+        el.textContent = msg;
+        progressBox.appendChild(el);
+        progressBox.scrollTop = progressBox.scrollHeight;
+    }
+
+    // Определяем протокол (ws или wss)
+    const protocol = window.location.protocol === "https:" ? "wss://" : "ws://";
+    const socket = new WebSocket(protocol + window.location.host + "/ws/shitgen/");
+
+    socket.onopen = function () {
+        addLog("✅ Connected to generator");
+    };
+
+    socket.onmessage = function (e) {
+        try {
+            const data = JSON.parse(e.data);
+            if (data.message) {
+                addLog(data.message);
+            }
+        } catch (err) {
+            console.error("WS parse error", err, e.data);
+        }
+    };
+
+    socket.onclose = function () {
+        addLog("❌ Disconnected");
+    };
+});
+</script>
+{% endblock %}
