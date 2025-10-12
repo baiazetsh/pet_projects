@@ -1,5 +1,7 @@
+from __future__ import annotations
 from django.urls import reverse
 from django.db import models
+from django.utils import timezone
 
 from django.utils.translation import gettext_lazy as _
 from django.conf import settings
@@ -139,7 +141,7 @@ class Comment(models.Model):
         related_name="replies"                     ,
         null=True,
         blank=True,
-        verbose_name=_("Patent comment"),
+        verbose_name=_("Parent comment"),
         )
     
     content = models.TextField(
@@ -173,6 +175,61 @@ class Comment(models.Model):
         return self.parent is None
     
 
+
+class ChatMessage(models.Model):
+    ROLE_CHOICES = [
+        ("user", "User"),
+        ("bot", "Bot"),
+    ]
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="chat_messages",
+        null=True, blank=True
+    )
+    bot_name = models.CharField(max_length=50, default="NeuroUbludok")
+    role = models.CharField(max_length=10, choices=ROLE_CHOICES)
+    content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return f"[{self.role}] {self.content[:50]}"
+
+
+
+
+class GenerationSettings(models.Model):
+    """Global generation setting moddel source"""
+    MODEL_CHOICES = [
+        ("ollama", "Ollama (Gemma local)"),
+        ("grok", "Grok (x.ai Api)"),
+        ("local", "Mini Server Stub"),
+    ]
+
+    current_source = models.CharField(
+        max_length=20,
+        choices=MODEL_CHOICES,
+        default="ollama",
+        verbose_name="Current LLM Source"
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"LLM Source: {self.get_current_source_display()}"
+
+    class Meta:
+        verbose_name = "Generation Settings"
+        verbose_name_plural = "Generation Settings"
+
+
+
+
+
+
 class Prompt(models.Model):
     title = models.CharField(max_length=250)
     template = models.TextField(help_text=_("Template with variables, for exsample: {{ topic }}"))
@@ -187,7 +244,7 @@ class Prompt(models.Model):
     model_name = models.CharField(
         max_length=30,
         help_text=_("LLM model name"),
-        default=getattr(settings, "LLM_MODEL")
+        default="gemma3:1b"
         )
     tags = models.CharField(max_length=200, blank=True, help_text="Thru comma: summary, comment, post")
 
@@ -225,30 +282,72 @@ class GeneratedItem(models.Model):
     inputs = models.JSONField()  # значения переменных
     result = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
-
-
-class ChatMessage(models.Model):
-    ROLE_CHOICES = [
-        ("user", "User"),
-        ("bot", "Bot"),
+  
+  
+  
+class ParsedTopic(models.Model):
+    """Raw and cleared topics, came from external sources"""
+    
+    SOURCE_CHOICES = [
+        ("hackernews", "HackerNews"),
+        ("reddit", "Reddit"),
+        ("twitter", "Twitter"),
+        ("vc_ru", "VC.ru"),
+        ("pikabu", "Pikabu"),
     ]
+    
+    source = models.CharField(max_length=32, choices=SOURCE_CHOICES)
+    title_raw = models.CharField(max_length=512)
+    title_clean = models.CharField(max_length=256, blank=True)
+    url = models.URLField(max_length=1000, blank=True)
+    
+    score = models.IntegerField(default=0)
+    comments = models.IntegerField(default=0)
+    
+    # control for uniqueness and status
+    hash_key = models.CharField(max_length=64, db_index=True)
+    processed = models.BooleanField(default=False)
+    
+    created_at = models.DateTimeField(default=timezone.now, db_index=True)
+    
+    class Meta:
+        indexes = [
+            models.Index(fields=["source", "created_at"]),
+            models.Index(fields=["hash_key"]),
+        ]
+        ordering = ["-created_at"]
+        verbose_name = "Parsed Topic"
+        verbose_name_plural = "Parsed Topics"
+        
+    def __str__(self) -> str:
+        return f"[{self.source}] {self.title_clean or self.title_raw}"[:120]  
+  
+  
+  
+  
 
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name="chat_messages",
-        null=True, blank=True
-    )
-    bot_name = models.CharField(max_length=50, default="NeuroUbludok")
-    role = models.CharField(max_length=10, choices=ROLE_CHOICES)
-    content = models.TextField()
-    created_at = models.DateTimeField(auto_now_add=True)
+class GeneratedChain(models.Model):
+    """Generation results by topic: raw data + metadata."""
+    
+    STATUS_CHOICES =[
+        ("ok", "OK"),
+        ("error", "Error"),
+    ]
+    
+    topic = models.ForeignKey(ParsedTopic, on_delete=models.CASCADE, related_name="chains")
+    model = models.CharField(max_length=64, blank=True)
+    source_switch = models.CharField(max_length=32, blank=True)  # 'local'|'ollama'|'grok' и т.д.
+    prompt_snapshot = models.TextField(blank=True)               # какой промпт ушёл
+    raw_output = models.TextField(blank=True)
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default="ok")
+    error_message = models.TextField(blank=True)
+
+    created_at = models.DateTimeField(default=timezone.now, db_index=True)
 
     class Meta:
-        ordering = ["created_at"]
+        ordering = ["-created_at"]
+        verbose_name = "Generated Chain"
+        verbose_name_plural = "Generated Chains"
 
-    def __str__(self):
-        return f"[{self.role}] {self.content[:50]}"
-
-
-
+    def __str__(self) -> str:
+        return f"Chain for {self.topic_id} [{self.status}]"

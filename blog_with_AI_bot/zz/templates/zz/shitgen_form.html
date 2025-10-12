@@ -31,7 +31,13 @@
       {{ form.bot.label_tag }}
       {{ form.bot }}
     </div>
+    <div class="mb-3">
+      {{ form.source.label_tag }}
+      {{ form.source }}
+    </div>
     <button type="submit" class="btn btn-primary">{% trans "Generate" %}</button>
+
+    <button type="button" id="parse-btn" class="btn btn-secondary">Parsing</button>
   </form>
 
   {% if messages %}
@@ -84,6 +90,37 @@ document.addEventListener("DOMContentLoaded", function () {
     socket.onclose = function () {
         addLog("❌ Disconnected");
     };
+});
+
+const socket = new WebSocket(`ws://${window.location.host}/ws/parse/`);
+
+socket.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    if (data.type === "parse_complete") {
+        document.querySelector('input[name="topic_theme"]').value = data.topic;
+    }
+};
+
+
+document.getElementById("parse-btn").addEventListener("click", async () => {
+    const btn = document.getElementById("parse-btn");
+    btn.disabled = true;
+    btn.textContent = "⏳ Парсинг...";
+    try {
+        const resp = await fetch("/shitgen/parse/");
+        const data = await resp.json();
+        if (data.success) {
+            const input = document.querySelector('input[name="topic_theme"]');
+            if (input) input.value = data.topic;
+        } else {
+            alert("Ошибка: " + (data.error || "Не удалось получить тему"));
+        }
+    } catch (e) {
+        alert("Ошибка соединения с сервером");
+    } finally {
+        btn.disabled = false;
+        btn.textContent = "Парсинг";
+    }
 });
 </script>
 {% endblock %}

@@ -10,6 +10,22 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - backend
+
+
+  redis-exporter:
+    image: oliver006/redis_exporter
+    ports:
+      - "9121:9121"
+    depends_on:
+      - redis
+    networks:
+      - backend
+    command:
+      - "--redis.addr=redis://redis:6379"
+
+
 
   web:
     build: .
@@ -26,6 +42,7 @@ services:
       - ./staticfiles:/app/staticfiles
       - ./media:/app/media
     environment:
+      - MINI_SERVER_URL=http://10.0.0.240:11434
       - DJANGO_SETTINGS_MODULE=blg.settings
       - CELERY_BROKER_URL=redis://redis:6379/0
       - OLLAMA_URL=http://ollama:11434
@@ -33,6 +50,11 @@ services:
     depends_on:
       - redis
       - ollama
+    networks:
+      - backend
+    extra_hosts:
+      - "mini_server:10.0.0.240"
+
 
   celery:
     build: .
@@ -41,6 +63,7 @@ services:
     volumes:
       - .:/app
     environment:
+      - MINI_SERVER_URL=http://10.0.0.240:11434
       - DJANGO_SETTINGS_MODULE=blg.settings
       - CELERY_BROKER_URL=redis://redis:6379/0
       - OLLAMA_URL=http://ollama:11434
@@ -49,6 +72,20 @@ services:
       - redis
       - web
       - ollama
+    networks:
+      - backend
+
+  celery-exporter:
+    image: danihodovic/celery-exporter
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+    ports:
+      - "9808:9808"
+    depends_on:
+      - redis
+      - celery
+    networks:
+      - backend
 
   ollama:
     image: ollama/ollama:latest
@@ -68,6 +105,8 @@ services:
       timeout: 10s
       retries: 5
       start_period: 120s
+    networks:
+        - backend
 
   flower:
     image: mher/flower
@@ -79,6 +118,42 @@ services:
     depends_on:
       - redis
       - celery
+    networks:
+      - backend
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    depends_on:
+      - web
+      - celery
+    networks:
+      - backend
+
+  grafana:
+    image: grafana/grafana:latest
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - backend
+
 
 volumes:
+  prometheus_data:
+  grafana_data:
   ollama-data:
+
+networks:
+  backend:
+   
+    name: backend

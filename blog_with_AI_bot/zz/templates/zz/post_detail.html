@@ -39,8 +39,15 @@
   </form>
 
   <!-- Summarize -->
-  <button id="summarize-btn" class="btn btn-warning">Summarize</button>
-  <div id="summary-box"></div>
+  <button id="summarize-btn"
+          class="btn btn-warning mt-2"
+          data-post-id="{{ post.id }}">
+          Summarize
+  </button>
+  <div id="summary-box"
+      class="alert alert-secondary mt-3 d-none"
+      role="alert">
+  </div>
   {% endif %}
 </div>
 
@@ -101,26 +108,46 @@
 
 
 <script>
+// 🟢 FIX 1: добавлена функция getCookie (для CSRF)
+function getCookie(name) {
+  let cookieValue = null;
+  if (document.cookie && document.cookie !== "") {
+    const cookies = document.cookie.split(";");
+    for (let cookie of cookies) {
+      cookie = cookie.trim();
+      if (cookie.startsWith(name + "=")) {
+        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+        break;
+      }
+    }
+  }
+  return cookieValue;
+}
 
-<!-- 🔥 JS для модалки -->
-
+// 🟢 FIX 2: заменено два DOMContentLoaded → на один общий init
 document.addEventListener("DOMContentLoaded", function() {
+  initProfileModal();
+  initCommentForms();
+  initUbludokButton();
+  initSummarizeButton();
+  initWebSocket();
+});
+
+/* ───────────────────────────────
+   🧩 МОДАЛКА ПРОФИЛЯ
+──────────────────────────────── */
+function initProfileModal() {
   const modal = new bootstrap.Modal(document.getElementById("profileModal"));
-  const avatarElems = document.querySelectorAll(".avatar-click");
+  const avatars = document.querySelectorAll(".avatar-click");
 
-  avatarElems.forEach(avatar => {
+  avatars.forEach(avatar => {
     avatar.style.cursor = "pointer";
-
     avatar.addEventListener("click", () => {
-      const profileId = avatar.dataset.profileId;
-
-      fetch(`/users/api/profiles/${profileId}/`)
-        .then(res => {
-          if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-          return res.json();
-        })
+      const id = avatar.dataset.profileId;
+      fetch(`/users/api/profiles/${id}/`)
+        .then(r => r.json())
         .then(data => {
-          document.getElementById("profile-full-link").href = "/users/profile/" + data.id + "/";
+          document.getElementById("profile-full-link").href = `/users/profile/${data.id}/`;
           document.getElementById("profile-avatar").src = data.avatar_url || '{% static "images/default-avatar.png" %}';
           document.getElementById("profile-name").textContent = data.display_name || "Unknown";
           document.getElementById("profile-quote").textContent = data.quote || "";
@@ -128,256 +155,193 @@ document.addEventListener("DOMContentLoaded", function() {
           document.getElementById("profile-bot").textContent = data.is_bot ? "🤖 Bot" : "👤 User";
           modal.show();
         })
-        .catch(err => {
-          console.error("❌ Profile load error:", err);
-          alert("Failed to load profile.");
-        });
+        .catch(err => console.error("Profile error:", err));
     });
   });
-});
-
-
-
-// assume 'commentHtml' is rendered _comment.html from backend
-function addComment(commentHtml) {
-  const commentList = document.getElementById("comment-list");
-  const temp = document.createElement("div");
-  temp.innerHTML = commentHtml.trim();
-
-  const newComment = temp.firstElementChild;
-  newComment.classList.add("bg-yellow-100", "dark:bg-yellow-900", "animate-pulse");
-
-  commentList.appendChild(newComment);
-
-  setTimeout(() => {
-    newComment.classList.remove("bg-yellow-100", "dark:bg-yellow-900", "animate-pulse");
-  }, 2000);
 }
 
+/* ───────────────────────────────
+   💬 КОММЕНТАРИИ
+──────────────────────────────── */
+function initCommentForms() {
+  const CSRF = document.querySelector("[name=csrfmiddlewaretoken]").value;
+  const mainForm = document.getElementById("commentForm");
+  if (!mainForm) return;
 
-const CSRF = document.querySelector("[name=csrfmiddlewaretoken]").value;
-const commentsList = document.getElementById("comments-list");
-
-// ----- Главная форма -----
-const mainForm = document.getElementById("commentForm");
-if (mainForm) {
-  mainForm.addEventListener("submit", async (e) => {
+  mainForm.addEventListener("submit", async e => {
     e.preventDefault();
     const formData = new FormData(mainForm);
-
-    try {
-      const res = await fetch(mainForm.action, {
-        method: "POST",
-        headers: {
-          "X-Requested-With": "XMLHttpRequest",
-          "X-CSRFToken": CSRF,
-        },
-        body: formData,
-      });
-
-      const data = await res.json();
-      if (data.success) {
-        mainForm.reset();
-      } else {
-        console.error("Ошибка формы:", data.errors || data);
-      }
-    } catch (err) {
-      console.error("Сеть/сервер при отправке главной формы:", err);
-    }
+    const res = await fetch(mainForm.action, {
+      method: "POST",
+      headers: { "X-CSRFToken": CSRF, "X-Requested-With": "XMLHttpRequest" },
+      body: formData
+    });
+    const data = await res.json();
+    if (data.success) mainForm.reset();
   });
+
+  document.querySelectorAll(".reply-form").forEach(form => bindReplyForm(form, CSRF));
 }
 
-// ----- Reply формы -----
-function bindReplyForm(form) {
-  form.addEventListener("submit", async (e) => {
+function bindReplyForm(form, CSRF) {
+  form.addEventListener("submit", async e => {
     e.preventDefault();
     const formData = new FormData(form);
-
-    try {
-      const res = await fetch(window.location.pathname, {
-        method: "POST",
-        headers: {
-          "X-Requested-With": "XMLHttpRequest",
-          "X-CSRFToken": CSRF,
-        },
-        body: formData,
-      });
-
-      const data = await res.json();
-      if (data.success) {
-        form.reset();
-      } else {
-        console.error("Ошибка реплая:", data.errors || data);
-      }
-    } catch (err) {
-      console.error("Сеть/сервер при отправке реплая:", err);
-    }
+    const res = await fetch(window.location.pathname, {
+      method: "POST",
+      headers: { "X-CSRFToken": CSRF, "X-Requested-With": "XMLHttpRequest" },
+      body: formData
+    });
+    const data = await res.json();
+    if (data.success) form.reset();
   });
 }
-document.querySelectorAll(".reply-form").forEach(bindReplyForm);
 
-// ----- Ублюдок -----
-const ubludokBtn = document.getElementById("ubludokBtn");
-const statusBox = document.getElementById("ubludok-status");
+/* ───────────────────────────────
+   🤖 УБЛЮДОК
+──────────────────────────────── */
+function initUbludokButton() {
+  const btn = document.getElementById("ubludokBtn");
+  if (!btn) return;
+  const box = document.getElementById("ubludok-status");
+  const CSRF = document.querySelector("[name=csrfmiddlewaretoken]").value;
 
-if (ubludokBtn) {
-  ubludokBtn.type = "button";
-
-  ubludokBtn.addEventListener("click", async (e) => {
+  btn.addEventListener("click", async e => {
     e.preventDefault();
-    
-    const url = ubludokBtn.dataset.url;
-    statusBox.textContent = "⚡ Призываю нейроублюдка...";
-
+    box.textContent = "⚡ Призываю нейроублюдка...";
     try {
-      const res = await fetch(url, {
+      const res = await fetch(btn.dataset.url, {
         method: "POST",
-        headers: {
-          "X-Requested-With": "XMLHttpRequest",
-          "X-CSRFToken": CSRF,
-        },
+        headers: { "X-CSRFToken": CSRF, "X-Requested-With": "XMLHttpRequest" }
       });
-
       const data = await res.json();
-      if (data.success) {
-        statusBox.textContent = "✅ Ублюдок вызван!";
-      } else {
-        statusBox.textContent = "❌ Ошибка вызова ублюдка.";
-        console.error("Ошибка вызова:", data);
-      }
+      box.textContent = data.success ? "✅ Ублюдок вызван!" : "❌ Ошибка вызова.";
     } catch (err) {
-      statusBox.textContent = "🚨 Ошибка сети при вызове ублюдка.";
-      console.error("Сеть при вызове ублюдка:", err);
+      box.textContent = "🚨 Ошибка сети при вызове ублюдка.";
     }
   });
 }
 
-// ----- Summarize -----
+/* ───────────────────────────────
+   🧠 SUMMARIZE
+──────────────────────────────── */
+function initSummarizeButton() {
+  const btn = document.getElementById("summarize-btn");
+  const box = document.getElementById("summary-box");
+  if (!btn || !box) return;
+  const postId = btn.dataset.postId;
 
-const summarizeBtn = document.getElementById("summarize-btn");
-const summaryBox = document.getElementById("summary-box");
-
-if (summarizeBtn) {
-  summarizeBtn.addEventListener("click", async () => {
-    summarizeBtn.disabled = true;
-    summarizeBtn.textContent = "⏳ Summarizing...";
-    summaryBox.textContent = "";
+  btn.addEventListener("click", async () => {
+    btn.disabled = true;
+    btn.innerText = "⏳ Summarizing...";
+    box.classList.remove("d-none");
+    box.innerHTML = "<em>Request sent to AI...</em>";
 
     try {
-      const res = await fetch("{% url 'zz:post_summarize' post.pk %}", {
+      const start = await fetch(`/posts/${postId}/summarize/`, {
         method: "POST",
-        headers: {
-          "X-CSRFToken": CSRF,
-          "X-Requested-With": "XMLHttpRequest",
-        },
+        headers: { "X-CSRFToken": getCookie("csrftoken") }
       });
+      const data = await start.json();
 
-      const data = await res.json();
-      if (!data.task_id) {
-        summaryBox.textContent = "❌ Ошибка: задача не запущена.";
+      if (data.status === "cached") {
+        box.innerHTML = `<p>${data.summary}</p><small class="text-muted">(from cache)</small>`;
+        btn.innerText = "Summarize again";
+        btn.disabled = false;
         return;
       }
 
       const taskId = data.task_id;
-      let attempts = 0;
-      const maxAttempts = 80;
+      box.innerHTML = `<em>🤖 Model is thinking...</em>`;
 
-      async function pollStatus() {
-        const statusRes = await fetch(`{% url 'zz:post_summarize' post.pk %}?task_id=${taskId}`);
-        const statusData = await statusRes.json();
+      const poll = setInterval(async () => {
+        const r = await fetch(`/posts/${postId}/summarize/?task_id=${taskId}`);
+        const s = await r.json();
 
-        if (statusData.status === "done") {
-          summaryBox.textContent = statusData.summary;
-          summarizeBtn.disabled = false;
-          summarizeBtn.textContent = "Summarize";
-        } else if (statusData.status === "error") {
-          summaryBox.textContent = "❌ Ошибка: " + statusData.message;
-          summarizeBtn.disabled = false;
-          summarizeBtn.textContent = "Summarize";
-        } else {
-          attempts++;
-          if (attempts >= maxAttempts) {
-            summaryBox.textContent = "⚠️ Превышено время ожидания.";
-            summarizeBtn.disabled = false;
-            summarizeBtn.textContent = "Summarize";
-          } else {
-            setTimeout(pollStatus, 3000);
-          }
+        if (s.status === "done") {
+          clearInterval(poll);
+          // 🟢 FIX 3: добавлен fade-in эффект
+          box.innerHTML = `<p class="fade-in">${s.summary}</p>
+                           <small class="text-success">(AI generated)</small>`;
+          btn.innerText = "Summarize again";
+          btn.disabled = false;
+        } else if (s.status === "error") {
+          clearInterval(poll);
+          box.innerHTML = `<p class="text-danger">❌ ${s.message}</p>`;
+          btn.innerText = "Try again";
+          btn.disabled = false;
+        } else if (s.status === "running") {
+          box.innerHTML = "<em>🧩 Still processing...</em>";
         }
-      }
-
-      pollStatus();
-
+      }, 2000);
     } catch (err) {
-      console.error("Summarize error:", err);
-      summaryBox.textContent = "🚨 Ошибка сети или сервера.";
-      summarizeBtn.disabled = false;
-      summarizeBtn.textContent = "Summarize";
+      box.innerHTML = `<p class="text-danger">Network error: ${err}</p>`;
+      btn.innerText = "Summarize again";
+      btn.disabled = false;
     }
   });
 }
 
+/* ───────────────────────────────
+   🌐 WEBSOCKET
+──────────────────────────────── */
+function initWebSocket() {
+  // 🟢 FIX 4: переименован, чтобы не конфликтовать с postId
+  const WS_POST_ID = "{{ post.pk }}";
+  const socket = new WebSocket(
+    (window.location.protocol === "https:" ? "wss://" : "ws://")
+    + window.location.host
+    + "/ws/posts/" + WS_POST_ID + "/"
+  );
 
+  socket.onopen = () => console.log("✅ WS connected");
+  socket.onerror = (err) => console.error("❌ WS error", err);
+  socket.onclose = (e) => console.warn("⚠️ WS closed", e);
 
+  socket.onmessage = (e) => {
+    const data = JSON.parse(e.data);
+    console.log("⚡ New comment:", data);
 
-// ----- WebSocket -----
-const postId = "{{ post.pk }}";
-const socket = new WebSocket(
-  (window.location.protocol === "https:" ? "wss://" : "ws://")
-  + window.location.host
-  + "/ws/posts/" + postId + "/"
-);
+    if (document.getElementById(`comment-${data.comment_id}`)) return;
+    const commentHtml = data.comment_html;
+    const parentId = data.parent_id;
+    const commentsList = document.getElementById("comments-list");
 
-socket.onopen = () => console.log("✅ WS connected");
-socket.onerror = (err) => console.error("❌ WS error", err);
-socket.onclose = (e) => console.warn("⚠️ WS closed", e);
-
-// 🔥 ЗАМЕНИТЕ ВЕСЬ СТАРЫЙ ОБРАБОТЧИК `socket.onmessage` НА ЭТОТ
-socket.onmessage = (e) => {
-  const data = JSON.parse(e.data);
-  console.log("⚡ Получен новый комментарий:", data);
-
-  // 1. Проверяем, нет ли уже такого комментария на странице
-  if (document.getElementById(`comment-${data.comment_id}`)) {
-    return;
-  }
-
-  const commentHtml = data.comment_html;
-  const parentId = data.parent_id;
-  const commentsList = document.getElementById("comments-list");
-
-  if (parentId) {
-    // ЭТО ОТВЕТ (REPLY)
-    const parentComment = document.getElementById(`comment-${parentId}`);
-    if (parentComment) {
-      // Ищем в родительском комментарии список для ответов <ul>
-      let repliesList = parentComment.querySelector("ul");
-      if (!repliesList) {
-        // Если это первый ответ, списка <ul> еще нет, создаем его
-        repliesList = document.createElement("ul");
-        repliesList.className = "list-unstyled ms-4 mt-3";
-        // Вставляем его после формы ответа родителя
-        parentComment.querySelector(".reply-form").insertAdjacentElement("afterend", repliesList);
-      }
-      // Добавляем HTML нового ответа в конец списка
-      repliesList.insertAdjacentHTML("beforeend", commentHtml);
-    }
-  } else {
-    // ЭТО КОММЕНТАРИЙ ВЕРХНЕГО УРОВНЯ
-    commentsList.insertAdjacentHTML("afterbegin", commentHtml);
-  }
-  
-  // 🔥 ВАЖНО: нужно "оживить" форму ответа в только что добавленном комментарии.
-  const newCommentElement = document.getElementById(`comment-${data.comment_id}`);
-  if (newCommentElement) {
-    const newReplyForm = newCommentElement.querySelector(".reply-form");
-    if (newReplyForm) {
-      bindReplyForm(newReplyForm); // Используем вашу существующую функцию
+    if (parentId) {
+      const parent = document.getElementById(`comment-${parentId}`);
+      if (parent) {
+        let replies = parent.querySelector("ul");
+        if (!replies) {
+          replies = document.createElement("ul");
+          replies.className = "list-unstyled ms-4 mt-3";
+          parent.querySelector(".reply-form").insertAdjacentElement("afterend", replies);
+        }
+        replies.insertAdjacentHTML("beforeend", commentHtml);
+      }
+    } else {
+      commentsList.insertAdjacentHTML("afterbegin", commentHtml);
     }
-  }
-};
 
+    const newEl = document.getElementById(`comment-${data.comment_id}`);
+    if (newEl) {
+      const newReplyForm = newEl.querySelector(".reply-form");
+      if (newReplyForm) bindReplyForm(newReplyForm, getCookie("csrftoken"));
+    }
+  };
+}
 </script>
+
+<!--  fade-in CSS -->
+<style>
+.fade-in {
+  animation: fadeIn 0.5s ease-in-out;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+</style>
+
 
 
 {% endblock %}

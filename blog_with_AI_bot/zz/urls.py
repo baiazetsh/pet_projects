@@ -30,6 +30,7 @@ urlpatterns =[
 
     #path("prompts/manual/", views.PromptInlineView.as_view(), name="prompt_execute_inline"),
     path("shitgen/", views.ShitgenView.as_view(), name="shitgen_form"),
+    path("shitgen/parse/", views.ParseTopicAjaxView.as_view(), name="parser_topic"),
     path("chat/", views.ChatView.as_view(), name="chat"),
     path("chat/clear/", views.ChatClearAjaxView.as_view(), name="chat_clear"),
 ]

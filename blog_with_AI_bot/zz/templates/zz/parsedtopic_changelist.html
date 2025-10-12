@@ -1,0 +1,7 @@
+<!--templates/admin/parsedtopic_changelist.html-->
+
+{% extends "admin/change_list.html" %}
+{% block object-tools-items %}
+{{ block.super }}
+<li><a href="run_pipeline/" class="button">🚀 Запустить пайплайн</a></li>
+{% endblock %}

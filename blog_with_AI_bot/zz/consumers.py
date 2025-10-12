@@ -5,11 +5,15 @@ from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 from zz.serializers import CommentSerializer
 from zz.utils.ollama_prompts import BOT_SYSTEM_PROMPTS
-from zz.utils.ollama_client import generate_text, clean_response
+from zz.utils.ollama_client import clean_response
+from zz.utils.source_selector import get_active_source
 from zz.models import ChatMessage
 from zz.models import Comment
+from zz.utils.llm_selector import generate_via_selector
+
 
 logger = logging.getLogger(__name__)
+source = get_active_source()
 
 
 class CommentConsumer(AsyncWebsocketConsumer):
@@ -160,7 +164,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
             prompt = f"{system_prompt}\n\nUser: {user_message}\nBot:"
             
             try:
-                raw_response = generate_text(prompt)
+                #aw_response = generate_text(prompt)
+                raw_response = generate_via_selector(prompt, source=source)
                 reply = clean_response(raw_response)
             except Exception as e:
                 reply = "Sorry, I couldn't generate a response right now."
@@ -196,3 +201,20 @@ class ChatConsumer(AsyncWebsocketConsumer):
             role=role,
             content=content
         )
+        
+        
+        
+class ParseConsumer(AsyncWebsocketConsumer):
+    async def connect(self):
+        await self.channel_layer.group_add("parse_channel", self.channel_name)
+        await self.accept()
+
+    async def disconnect(self, close_code):
+        await self.channel_layer.group_discard("parse_channel", self.channel_name)
+
+    async def parse_complete(self, event):
+        # event приходит из Celery-таска через channel_layer.group_send
+        await self.send(text_data=json.dumps({
+            "type": "parse_complete",
+            "topic": event["topic"],
+        }))        

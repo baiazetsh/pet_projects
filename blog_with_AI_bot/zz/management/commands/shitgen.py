@@ -14,9 +14,14 @@ from zz.utils.ollama_client import(
 from zz.utils.ollama_prompts import  generate_with_template, BOT_SYSTEM_PROMPTS
 import time
 import logging
+from zz.utils.llm_selector import generate_via_selector
+from zz.utils.source_selector import get_active_source
+from zz.utils.bots import BOTS
+
 
 logger = logging.getLogger(__name__)
 
+source = get_active_source() # func choice LLM model
 
 class Command(BaseCommand):
     help = "Нейроублюдок генерит Topic -> Chapter -> Post -> Comment "
@@ -49,8 +54,15 @@ class Command(BaseCommand):
             "--bot",
             type=str,
             default="NeuroUbludok",
-            choices=list(BOT_SYSTEM_PROMPTS.keys()),
+            choices=[b["username"] for b in BOTS],
             help="Character of bot"
+        )
+        parser.add_argument(
+            "--source",
+            type=str,
+            default="ollama",
+            choices=["ollama", "grok", "local"],
+            help="Te source of model generation (default: ollama)"
         )
         parser.add_argument(
             "--retries",
@@ -74,6 +86,7 @@ class Command(BaseCommand):
         comments_per_post = options["comments"]
         retries = options["retries"]
         delay = options["delay"]
+        source = options["source"].lower()
         
         self.stdout.write(self.style.SUCCESS(
             f"""
@@ -124,13 +137,15 @@ class Command(BaseCommand):
                 chapter_title = generate_with_template(
                     "chapter_title",
                     theme=topic_theme,
-                    num=chapter_num
+                    num=chapter_num,
+                    #source=source
                 )                
                 
                 chapter_description = generate_with_template(
                     "chapter_description",
                     theme=topic_theme,
-                    num=chapter_num
+                    num=chapter_num,
+                    #source=source
                 )
                 
                 chapter = Chapter.objects.create(
@@ -160,12 +175,14 @@ class Command(BaseCommand):
                     post_title = generate_with_template(
                     "post_title",
                     theme=chapter_title,
-                    num=post_num
+                    num=post_num,
+                    #source=source
                     )
                     post_content = generate_with_template(
                         "post_content",
                         theme=chapter_title,
-                        num=post_num
+                        num=post_num,
+                        #source=source
                     )
                     post = Post.objects.create(
                         chapter=chapter,
@@ -195,7 +212,8 @@ class Command(BaseCommand):
                         comment_text = generate_with_template(
                             "comment",
                             post_excerpt=post_content[:500],
-                            num=comment_num
+                            num=comment_num,
+                            #Ssource=source
                         )                            
                         Comment.objects.create(
                             post=post,

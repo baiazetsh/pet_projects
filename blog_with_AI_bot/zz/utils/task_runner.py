@@ -3,6 +3,8 @@
 import logging
 import threading
 from django.conf import settings
+from zz.utils.source_selector import get_active_source
+from django.core.management import call_command
 
 logger = logging.getLogger(__name__)
 
@@ -12,6 +14,7 @@ try:
 except ImportError:
     HAS_CELERY = False
 
+#source = get_active_source()
 
 def run_task(func, *args, use_celery_name=None, **kwargs):
     """
@@ -39,3 +42,34 @@ def run_task(func, *args, use_celery_name=None, **kwargs):
     logger.info(f"[TaskRunner] → threading ({func.__name__})")
     thread = threading.Thread(target=func, args=args, kwargs=kwargs, daemon=True)
     thread.start()
+    
+    
+    
+# for ShitgenView
+def run_shitgen_sync(
+    topic_theme,
+    chapters=1,
+    posts=1,
+    comments=1,
+    bot="NeuroUbludok",
+    source=None
+):
+
+    """Синхронный запуск shitgen через call_command (для threading fallback)."""
+    if not source:
+        source = get_active_source()
+        
+    call_command(
+        "shitgen",
+        topic_theme,
+        #chapters=chapters,
+        #posts=posts,
+        #comments=comments,
+        #bot=bot,
+        f"--chapters={chapters}",
+        f"--posts={posts}",
+        f"--comments={comments}",
+        f"--bot={bot}",
+        f"--source={source}",        
+    )
+    

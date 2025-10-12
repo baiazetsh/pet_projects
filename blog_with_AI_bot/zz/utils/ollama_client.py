@@ -4,6 +4,7 @@ import requests
 from django.conf import settings
 import logging
 from ollama import Client
+import json
 
 OLLAMA_BASE_URL = getattr(settings, "LLM_URL", "http://ollama:11434")
 
@@ -31,15 +32,35 @@ def generate_text(prompt: str, model: str = None) -> str:
             "prompt": prompt,
             "stream": False
         }
+        logger.debug(f"[OLLAMA] POST {url} model={model}")
+
         resp = requests.post(url, json=payload, timeout=120)
         resp.raise_for_status()
 
-        data = resp.json()        
-        return data.get("response", "")
+        try:
+            data = resp.json()        
+            return data.get("response", "")
+        except Exception:
+            text_parts = []
+            for line in resp.text.splitlines():
+                try:
+                    part = json.loads(line)
+                    if "response" in part:
+                        text_parts.append(part["response"])
+                except Exception:
+                    continue
+            return "".join(text_parts)
 
-    except Exception as e:
-        logger.error(f"[LLM_ERROR] generate_text failed: {e}")
+    except requests.exceptions.Timeout:
+        logger.error("[OLLAMA] ⏳ Превышено время ожидания ответа.")
         raise
+    except Exception as e:
+        logger.error(f"[OLLAMA] generate_text failed: {e}")
+        raise
+
+    #except Exception as e:
+    #    logger.error(f"[LLM_ERROR] generate_text failed: {e}")
+    #    raise
 
 
 def list_models() -> list[str]:
@@ -64,8 +85,9 @@ def clean_response(text: str) -> str:
         return ""
     # убираем размышления <think> убираем markdown-разметку (*, #, _)
     cleaned = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
-    cleaned = re.sub(r"\s+", " ", cleaned).strip()
-    cleaned = re.sub(r"[*#_`]+", "", cleaned)
+    cleaned = re.sub(r"[*#_`>]+", "", cleaned)  # убираем markdown
+    cleaned = re.sub(r"\s*\n\s*", " ", cleaned)  # убираем переносы
+    cleaned = re.sub(r"\s{2,}", " ", cleaned)    # лишние пробелы
 
     return cleaned.strip()
 

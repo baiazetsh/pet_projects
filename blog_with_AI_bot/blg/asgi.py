@@ -4,7 +4,7 @@ from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.auth import AuthMiddlewareStack
 
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "blog_with_ai_bot.settings")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "blg.settings")
 
 django_asgi_app = get_asgi_application()
 

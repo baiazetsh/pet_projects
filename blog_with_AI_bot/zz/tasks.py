@@ -1,8 +1,10 @@
-#tasks.py
+#zz/tasks.py
+from __future__ import annotations
 from celery import shared_task
 from zz.models import Post, Chapter, Comment
 from django.contrib.auth import get_user_model
 from django.conf import settings
+from zz.utils.metrics import track_bot_reply, track_summarize_time
 import re
 import time
 import random
@@ -17,16 +19,128 @@ from zz.utils.ollama_client import (
 )
 from django.shortcuts import get_object_or_404
 from zz.utils.utils import notify_new_comment  
+from zz.utils.llm_selector import generate_via_selector
+from zz.utils.source_selector import get_active_source
+from typing import List
+from zz.parsers.hackernews import HackerNewsParser
+#from zz.parsers.reddit import RedditParser
+#from zz.parsers.twitter import TwitterParser
+#from zz.parsers.vc_ru import VcRuParser
+#from zz.parsers.pikabu import PikabuParser
 
-
+from zz.topic_cleaner import normalize_title, make_hash_key
+from zz.topic_selector import accept_topic
+from zz.models import ParsedTopic, GeneratedChain
+from zz.topic_generator import generate_for_topic
 
 logger = logging.getLogger(__name__)
+source = get_active_source()
+
+# ⚙️ Параметры можно вынести в settings.py
+ENABLED_SOURCES = getattr(settings, "TOPIC_SOURCES", ["hackernews"])  # позже расширим
+MIN_SCORE = getattr(settings, "TOPIC_MIN_SCORE", 50)
+MIN_COMMENTS = getattr(settings, "TOPIC_MIN_COMMENTS", 10)
+FETCH_LIMIT = getattr(settings, "TOPIC_FETCH_LIMIT", 50)
+
+
+@shared_task
+def fetch_trending_topics() -> int:
+    """Собрать горячие темы из включённых источников и сохранить в БД."""
+    # 1) Подбираем парсеры
+    parsers = []
+    if "hackernews" in ENABLED_SOURCES:
+        parsers.append(HackerNewsParser())
+    """
+    if "reddit" in ENABLED_SOURCES:
+        parsers.append(RedditParser())
+    if "twitter" in ENABLED_SOURCES:
+        parsers.append(TwitterParser())
+    if "vc_ru" in ENABLED_SOURCES:
+        parsers.append(VcRuParser())
+    if "pikabu" in ENABLED_SOURCES:
+        parsers.append(PikabuParser())
+    """
+
+    created = 0
+
+    for parser in parsers:
+        try:
+            items = parser.fetch(limit=FETCH_LIMIT)
+        except Exception:
+            continue
+
+        for it in items:
+            if not accept_topic(it["score"], it["comments"], min_score=MIN_SCORE, min_comments=MIN_COMMENTS):
+                continue
+
+            title_clean = normalize_title(it["title"]) or it["title"][:120]
+            hk = make_hash_key(it["source"], title_clean)
+
+            # dedup: не создаём дубль
+            if ParsedTopic.objects.filter(hash_key=hk).exists():
+                continue
+
+            ParsedTopic.objects.create(
+                source=it["source"],
+                title_raw=it["title"],
+                title_clean=title_clean,
+                url=it.get("url", ""),
+                score=it.get("score", 0),
+                comments=it.get("comments", 0),
+                hash_key=hk,
+            )
+            created += 1
+
+    return created
+
+
+
+
+SOURCE_SWITCH = getattr(settings, "TOPIC_GENERATION_SOURCE", "local")  # 'local'|'ollama'|'grok'
+BATCH_SIZE = getattr(settings, "TOPIC_GENERATION_BATCH", 10)
+
+
+@shared_task
+def generate_chains_for_new_topics() -> int:
+    """
+    Take unprocessed topics → generate content chain → save to GeneratedChain.
+    Returns count of successful generations.
+    """
+    qs = ParsedTopic.objects.filter(processed=False).order_by("-created_at")[:BATCH_SIZE]
+    total = 0
+
+    for topic in qs:
+        raw, model_name = generate_for_topic(topic.title_clean or topic.title_raw, source_switch=SOURCE_SWITCH)
+        status = "ok"
+        err = ""
+        if raw.startswith("[generation error]"):
+            status = "error"
+            err = raw
+
+        GeneratedChain.objects.create(
+            topic=topic,
+            model=model_name,
+            source_switch=SOURCE_SWITCH,
+            prompt_snapshot=(topic.title_clean or topic.title_raw),
+            raw_output=raw,
+            status=status,
+            error_message=err,
+        )
+
+        topic.processed = True
+        topic.save(update_fields=["processed"])
+        total += 1
+
+    return total
+
 
 @shared_task(bind=True, max_retries=3)
 def summarize_post(self, post_id: int) -> str:
     """
     Async task: to make short summary of post with Ollama
     """
+    start = time.time()
+
     try:
         post = get_object_or_404(Post, pk=post_id)
 
@@ -35,10 +149,13 @@ def summarize_post(self, post_id: int) -> str:
             f"{post.content[:1500]}"            
         )
         # Text generation with Ollama
+        """
         raw_text = generate_text(
             prompt=prompt,
             model=settings.LLM_MODEL
         )
+        """
+        raw_text = generate_via_selector(prompt, source=source)
 
         summary = clean_response(raw_text).strip()
 
@@ -50,6 +167,8 @@ def summarize_post(self, post_id: int) -> str:
         post.save(update_fields=["summary"])
 
         logger.info(f"[SUMMARY] Post {post.id}: {summary[:60]}...")
+
+        track_summarize_time(time.time() - start)
         return summary
 
     except Exception as e:
@@ -64,6 +183,8 @@ def generate_post(chapter_id, title):
     Фоновая задача: создаёт пост в базе данных.
     В реальном проекте здесь может быть вызов Ollama API.
     """
+    start = time.time()
+
     chapter = Chapter.objects.get(id=chapter_id)
     body = f"Сгенерированный текст для: {title}"
     post = Post.objects.create(
@@ -71,12 +192,16 @@ def generate_post(chapter_id, title):
         title=title,
         content=body,
         )
+    
+    track_summarize_time(time.time() - start)
     return {"post_id": post.id, "title": title}
 
 # отдельная Celery задача для генерации ответов ботов
 @shared_task
 def generate_bot_reply_task(comment_id, bot_profile):
     """Celery задача для генерации ответа бота"""
+    start = time.time()
+
     try:
         instance = Comment.objects.get(id=comment_id)
         username = bot_profile["username"]
@@ -137,6 +262,8 @@ def generate_bot_reply_task(comment_id, bot_profile):
         
         notify_new_comment(comment)
         
+        track_summarize_time(time.time() - start)
+
         return {
             "success": True,
             "comment_id": comment.id,

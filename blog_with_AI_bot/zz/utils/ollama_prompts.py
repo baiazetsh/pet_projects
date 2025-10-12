@@ -1,8 +1,11 @@
 # utils/ollama_prompts.py
-from .ollama_client import generate_text, clean_response
+from .ollama_client import clean_response # generate_text na udalenie
 import logging
+from zz.utils.llm_selector import generate_via_selector
+from zz.utils.source_selector import get_active_source
 
 logger = logging.getLogger(__name__)
+
 
 PROMPTS = {
     "chapter_title": {
@@ -68,12 +71,15 @@ def generate_with_template(kind: str, **kwargs) -> str:
     kind: "chapter_title", | "post_title" | "post_content" | "comment"
      kwargs: values for formating {theme}, {num}, {post_excerpt}
     """
+    source = get_active_source() #llm selector(by admin)
 
     system_prompt = PROMPTS[kind]["system"]
     user_prompt = PROMPTS[kind]["user"].format(**kwargs)
+    prompt = f"{system_prompt}\n\n{user_prompt}"
 
     try:
-        raw = generate_text(f"{system_prompt}\n\n{user_prompt}")
+        #raw = generate_text(f"{system_prompt}\n\n{user_prompt}")
+        raw = generate_via_selector(prompt, source=source)
         return clean_response(raw.strip())
     except Exception as e:
         logger.error(f"[PROMPTS ERROR] kind={kind} kwargs={kwargs} err={e}")

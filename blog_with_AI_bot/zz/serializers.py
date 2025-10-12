@@ -8,7 +8,7 @@ from zz.models import Comment
 class ProfileMiniSerializer(serializers.ModelSerializer):
     """Short info about user for comments"""
     class Meta:
-        models = Profile
+        model = Profile
         fields = ["avatar", "quote"]
 
 

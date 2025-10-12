@@ -5,6 +5,8 @@ import random
 import logging
 from django.db.models.signals import post_save
 from django.contrib.auth import get_user_model
+from zz.utils.llm_selector import generate_via_selector
+from zz.utils.source_selector import get_active_source #llm selector(by admin)
 
 from django.conf import settings
 
@@ -28,9 +30,13 @@ logger = logging.getLogger(__name__)
 
 #условный импорт Celery задач только если включен Celery
 if getattr(settings, "USE_CELERY", False):
-    from zz.tasks import generate_bot_reply_task
+    try:
+        from zz.tasks import generate_bot_reply_task
+    except ImportError:
+        generate_bot_reply_task = None
     
 call_ubludok = Signal()
+source = get_active_source()
 
 @receiver(call_ubludok)
 def handle_call_ubludok(sender, user=None, post=None, **kwargs):
@@ -107,6 +113,7 @@ def generate_bot_reply_sync(instance, bot_profile):
         
             #  обработка ошибок подключения к Ollama
             try:
+                """
                 client = get_ollama_client()
                 response = client.chat(
                     model=settings.LLM_MODEL,
@@ -116,11 +123,15 @@ def generate_bot_reply_sync(instance, bot_profile):
                     ],
                     stream=False
                 )
+                """
+                prompt = f"Вот обсуждение:\n{dialogue}\n\nОтветь на последний коммент в своём стиле..."
+                reply_text = generate_via_selector(prompt, source=source)
             except Exception as ollama_error:
                 logger.error(f"[{username}] Ошибка Ollama: {ollama_error}")
                 reply_text = "🤷 Model is temporarily unavailable."
             else:
-                reply_text =  clean_response(response["message"]["content"].strip())
+                #reply_text =  clean_response(response["message"]["content"].strip())
+                reply_text = clean_response(reply_text)
                 if not reply_text or len(reply_text) < 3:
                     reply_text = "🤷 Nothing to say."
 

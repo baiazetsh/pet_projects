@@ -1,6 +1,9 @@
-
+#settings.py
 from pathlib import Path
 import os
+from dotenv import load_dotenv
+load_dotenv()
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -15,13 +18,16 @@ SECRET_KEY = 'django-insecure-iz#r+8v28-@evxh+g3)01$82r)en-pf53fnm7irkxsi&7dv41@
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+#ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'web']
+
 
 
 # Application definition
 
 INSTALLED_APPS = [
-
+    
+    'django_prometheus',
     'rest_framework',
     'channels',
     'django_celery_results',
@@ -36,6 +42,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'django_prometheus.middleware.PrometheusBeforeMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -43,6 +50,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'django_prometheus.middleware.PrometheusAfterMiddleware',
 ]
 
 ROOT_URLCONF = 'blg.urls'
@@ -64,7 +72,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'blg.wsgi.application'
 
-ASGI_APPLICATION = "blog_with_ai_bot.asgi.application"
+ASGI_APPLICATION = "blg.asgi.application"
 
 # Redis для хранения сообщений каналов
 CHANNEL_LAYERS = {
@@ -160,7 +168,13 @@ LLM_MODEL = "gemma3:1b"
 LLM_URL = "http://ollama:11434" #for Docker
 #LLM_URL = os.getenv("LLM_URL", "http://localhost:11434") # for local work
 
-CELERY_BROKER_URL = "redis://127.0.0.1:6379/0"
+GROK_NAME_MODEL = "grok-4-fast-non-reasoning"
+GROK_API_KEY = os.getenv("GROK_API_KEY")
+GROK_URL = os.getenv("GROK_URL", "https://api.x.ai/v1/chat/completions")
+
+
+CELERY_BROKER_URL = "redis://redis:6379/0"
+#CELERY_BROKER_URL = "redis://127.0.0.1:6379/0"
 #CELERY_RESULT_BACKEND = "redis://127.0.0.1:6379/0"
 CELERY_RESULT_BACKEND = "redis://redis:6379/1"
 
@@ -170,6 +184,11 @@ CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = "UTC"
 
+#MINI_SERVER_URL = os.getenv("MINI_SERVER_URL", "http://10.0.0.240:11434")
+#MINI_SERVER_URL = "http://host.docker.internal:11434"
+MINI_SERVER_URL = "http://mini_server:11434"
+
+
 # !!! Только для тестов, чтобы задачи выполнялись сразу
 #CELERY_TASK_ALWAYS_EAGER = True
 
@@ -178,6 +197,18 @@ CELERY_TIMEZONE = "UTC"
 #USE_CELERY = False #→ использует threading с функцией generate_bot_reply_sync
 USE_CELERY = True #→ использует Celery с задачей generate_bot_reply_task
 
+TOPIC_SOURCES = [
+    "hackernews",  # по умолчанию — только HN; расширим позже
+    # "reddit",
+    # "twitter",
+    # "vc_ru",
+    # "pikabu",
+]
+TOPIC_MIN_SCORE = 50
+TOPIC_MIN_COMMENTS = 10
+TOPIC_FETCH_LIMIT = 50
 
+TOPIC_GENERATION_SOURCE = "local"   # 'local' | 'ollama' | 'grok'
+TOPIC_GENERATION_BATCH = 10
 
 

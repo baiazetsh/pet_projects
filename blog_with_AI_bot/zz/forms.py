@@ -4,10 +4,19 @@ from django import forms
 from django.utils.translation import gettext_lazy as _
 from django.template import Template
 from django.template.exceptions import TemplateSyntaxError
+from django.core.exceptions import ValidationError
 from django.conf import settings
 
 from zz.utils.bots import BOTS, BOT_USERNAMES
-from .models import Comment, Topic, Chapter, Post, Prompt, GeneratedItem
+from .models import(
+    Comment, Topic,
+    Chapter,
+    Post,
+    Prompt,
+    GeneratedItem,
+    GenerationSettings
+)
+
 
 
 
@@ -142,7 +151,7 @@ class CommentForm(forms.ModelForm):
             'content': forms.Textarea(attrs={
                 'class': 'form-control',
                 'placeholder': _('Enter the comment text'),
-                'authofocus': True,
+                'autofocus': True,
                 'rows': 3,
             })
         }
@@ -183,15 +192,22 @@ class PromptForm(forms.ModelForm):
 
 
 class ShitgenForm(forms.Form):
+    
     topic_theme = forms.CharField(
-        label="Topic theme",
-        max_length=200,
-        widget=forms.TextInput(attrs={"class": "form-control"}),
+        label=_("Topic theme"),
+        max_length=200,        
         required=True,
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control",
+                "placeholder": _("Enter or parse topic..."),
+                "id": "id_topic_theme",
+            }
+        ),
     )
 
     chapters = forms.IntegerField(
-        label="Number of chapters",
+        label=_("Number of chapters"),
         min_value=1,
         max_value=20,
         initial=1,
@@ -199,7 +215,7 @@ class ShitgenForm(forms.Form):
     )
 
     posts = forms.IntegerField(
-        label="Posts per chapter",
+        label=_("Posts per chapter"),
         min_value=1,
         max_value=10,
         initial=1,
@@ -207,7 +223,7 @@ class ShitgenForm(forms.Form):
     )
 
     comments = forms.IntegerField(
-        label="Comments per post",
+        label=_("Comments per post"),
         min_value=0,
         max_value=10,
         initial=1,
@@ -215,8 +231,14 @@ class ShitgenForm(forms.Form):
     )
 
     bot = forms.ChoiceField(
-        label="Bot character",
+        label=_("Bot character"),
         choices=[(b["username"], b["display_name"]) for b in BOTS],
         widget=forms.Select(attrs={"class": "form-select"}),
         initial=BOTS[0]["username"],  # по умолчанию берём первого бота из списка
+    )
+    source = forms.ChoiceField(
+        label=_("Generation Model"),
+        choices=GenerationSettings.MODEL_CHOICES,
+        widget=forms.Select(attrs={"class": "form-select"}),
+        initial="ollama",
     )

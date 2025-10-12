@@ -23,23 +23,10 @@ from django.template.exceptions import TemplateSyntaxError
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import render, redirect, get_object_or_404
 from icecream import ic
-from django.core.management import call_command
+
 from django.db.models import Count
 
-def get_context_data(self, **kwargs):
-    context = super().get_context_data(**kwargs)
-
-    topics_with_chapters = (
-        Topic.objects.filter(
-            owner=self.request.user,
-            pk__in=[topic.pk for topic in context['topics']]
-        )
-        .prefetch_related('chapters')
-        .annotate(total_posts=Count('chapters__posts'))  
-    )
-
-    context['topic_with_chapters'] = topics_with_chapters
-    return context
+from zz.topic_provider import get_ready_topic
 
 
 
@@ -64,8 +51,9 @@ from zz.signals import call_ubludok
 from zz.utils import notify_new_comment
 from django.template import Template, Context
 from zz.utils.ollama_client import generate_text, clean_response
-from zz.utils.task_runner import run_task
+from zz.utils.task_runner import run_task, run_shitgen_sync
 from zz.utils.bots import BOTS
+
 
 import logging
 logger = logging.getLogger(__name__)
@@ -92,11 +80,31 @@ def summon_ubludok(request, pk):
                         )
 
 
+
 class SummarizePostView(View):
+    """
+    POST /api/posts/<id>/summary/
+        → If summary already exists< return it immediately (without the task)
+        → If not, start Celery and return the task_id
+
+    GET /api/posts/<id>/summary/?task_id=<uuid>
+        → Query Celery-task
+    """
     def post(self, request, pk):
         post = get_object_or_404(Post, pk=pk)
+
+        # Idempotent check — if summary exist already
+        if post.summary and post.summary.strip():        
+            return JsonResponse(
+                {"status": "cached",
+                "summary": post.summary
+                }, status=200)
+        # start Celery-task
         task = summarize_post.delay(post.id)
-        return JsonResponse({"task_id": task.id, "status": "started"})
+        return JsonResponse({
+            "task_id": task.id,
+            "status": "started"
+        }, status=202)
     
     def get(self, request, pk):
         """Check the task status by task_id"""
@@ -106,27 +114,34 @@ class SummarizePostView(View):
             
         task_result = AsyncResult(task_id)
         
-        if task_result.state == "PENDING":
-            return JsonResponse({"status": "pending"})
-        elif task_result.state == "STARTED":
-            return JsonResponse({"status": "running"})
-        elif task_result.state == "FAILURE":
-            error_message = str(task_result.info) if task_result.info else "Unknown error"
-            return JsonResponse({"status": "error", "message": str(task_result.info)})
-        elif task_result.state == "SUCCESS":
-            # summary is already saved in Post, you can return it immediately
-            post = get_object_or_404(Post, pk=pk)
-            summary = post.summary or "Summarising is done, but result is empty"
-            return JsonResponse({"status": "done", "summary": summary})
+        match task_result.state:
+            case "PENDING":
+                return JsonResponse({"status": "pending"})
+            case "STARTED":
+                return JsonResponse({"status": "running"})
+            case "FAILURE":
+                error_message = str(task_result.info) if task_result.info else "Unknown error"
+                return JsonResponse({
+                    "status": "error",
+                    "message": error_message
+                    }, status=500)
+            case "SUCCESS":
+                # summary is already saved in Post, you can return it immediately
+                post = get_object_or_404(Post, pk=pk)
+                summary = post.summary or "Summarising is done, but result is empty"
+                return JsonResponse({"status": "done", "summary": summary})
 
-        return JsonResponse({"status": task_result.state})
+        # fallback
+        return JsonResponse({"status": task_result.state}, status=200)
+
+
     
 
 class TopicListView(LoginRequiredMixin, ListView):
     model =Topic
     template_name = "zz/index.html"
     context_object_name = "topics"
-    paginate_by = 3
+    paginate_by = 12
     
     def get_queryset(self):
         return Topic.objects.all().order_by('-created_at')
@@ -147,6 +162,8 @@ class TopicListView(LoginRequiredMixin, ListView):
         
         context['topic_with_chapters'] = topics_with_chapters
         return context
+    
+    
 
 class TopicCreateView(LoginRequiredMixin, CreateView):
     model = Topic
@@ -417,23 +434,6 @@ class PostDeleteView(LoginRequiredMixin, View):
 
 
 
-# for ShitgenView
-def run_shitgen_sync(
-    topic_theme,
-    chapters=1,
-    posts=1,
-    comments=1,
-    bot="NeuroUbludok"
-    ):
-    """Синхронный запуск shitgen через call_command (для threading fallback)."""
-    call_command(
-        "shitgen",
-        topic_theme,
-        chapters=chapters,
-        posts=posts,
-        comments=comments,
-        bot=bot,
-    )
 
 class ShitgenView(View):
     def get(self, request):
@@ -453,6 +453,7 @@ class ShitgenView(View):
         posts = form.cleaned_data["posts"]
         comments = form.cleaned_data["comments"]
         bot = form.cleaned_data["bot"]
+        source = form.cleaned_data["source"]
 
         try:
             run_task(
@@ -463,6 +464,7 @@ class ShitgenView(View):
                 comments=comments,
                 bot=bot,
                 use_celery_name="generate_shitgen_task",
+                source=source,
             )
             messages.success(request, f"Topic '{topic_theme}' generated successfully!")
             return redirect("zz:index")
@@ -471,6 +473,25 @@ class ShitgenView(View):
             logger.exception(f"[ShitgenView] Ошибка запуска: {e}")
             messages.error(request, "❌ Ошибка при запуске генерации")
             return render(request, "shitgen_form.html", {"form": form})
+
+
+class ParseTopicAjaxView(View):
+    """
+    AJAX endpoint for parsing a trending topic.
+    """
+    def get(self, request):
+        try:
+            topic = get_ready_topic()
+            if not topic:
+                return JsonResponse({
+                    "success": False,
+                    "error": "No trending topics found."
+                })
+            return JsonResponse({"success": True, "topic": topic})
+        except Exception as e:
+            logger.exception("[ParseTopicAjaxView] Parsing error")
+            return JsonResponse({"success": False, "error": str(e)})
+        
 
 
 
